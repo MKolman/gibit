@@ -81,7 +81,7 @@
     }
 
 </script>
-<h1><img width="150" src="https://www.gibit.si/wp-content/uploads/2021/04/Logo-GiBit-horizontalno.png" class="attachment-full size-full wp-image-51" alt="">Gibit analiza</h1>
+<h1>Gibit analiza</h1>
 <div class="tabs">
     <button class:active={tab === 0} on:click={() => tab = 0}>Skupine</button>
     <button class:active={tab === 1} on:click={() => tab = 1}>Posamezniki</button>

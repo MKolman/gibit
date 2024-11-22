@@ -3,8 +3,7 @@ import json
 from collections import defaultdict as dd
 
 def get_data():
-    with open('data.csv', 'r') as f:
-        f.readline()
+    with open('data_2024_11_22.csv', 'r') as f:
         reader = csv.DictReader(f)
         # print(reader.fieldnames[3:-3])
         return reader.fieldnames[5:-3], list(reader)
@@ -46,7 +45,7 @@ def get_animals_mapping():
          animals = set(map(str.strip, f))
     with open('animals_mapping.csv', 'r') as f:
         existing = {r['Ime']: r['Šifra'] for r in csv.DictReader(f)}
-    animals -= set(existing.keys())
+    animals -= set(existing.values())
     def get_code(name):
         if name not in existing:
             existing[name] = animals.pop()
@@ -74,7 +73,7 @@ def main():
         result["data"].append({
             "name": get_code(row["Ime"]),
             "groups": groups[row["Ime"]],
-            "vals": [int(row[header]) for header in headers],
+            "vals": [int(row[header]) if row[header] else 0 for header in headers],
         })
     save_data(result)
     persist_code()

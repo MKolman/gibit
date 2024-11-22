@@ -1,7 +1,6 @@
-<script context="module">
-	import Chart from 'chart.js/auto'
+<script context="module" lang="ts">
+	import Chart from 'chart.js/auto';
 	import { type ChartConfiguration as Config } from 'chart.js';
-
 </script>
 
 <script lang="ts">
