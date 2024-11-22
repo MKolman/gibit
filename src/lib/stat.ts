@@ -20,6 +20,18 @@ function identity(val: number): number {
     return val;
 }
 
+export const bojanScoreNormalizers = [
+    (val: number) => val/5,
+    (val: number) => val/3,
+    (val: number) => val/8,
+    (val: number) => val/3,
+    (val: number) => val/4,
+    identity,
+    identity,
+    identity,
+    (val: number) => val/5,
+]
+
 export function makeHistograms(data: Data[], groups: string[], colors: string[], isPct: boolean = false): {datasets: {label: string, data: number[]}[]; labels: string[]}[] {
     if (data.length === 0) {
         return [];
@@ -49,7 +61,7 @@ function calcBuckets(data: number[]): {start: number; bucket: number; end: numbe
 }
 
 function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolean, colors: string[]): {labels: string[], datasets: {label: string, data: number[]}[]} {
-    const round = (v: number) => isPct ? scoreToPctTxt(v): v;
+    const round = (v: number) => isPct ? scoreToPctTxt(v): v % 1 == 0?v:v.toFixed(2);
     const {start, bucket, end} = calcBuckets(data.map(d => d.vals[idx]));
     data.sort((a, b) => a.vals[idx] - b.vals[idx]);
     const datasets: {label: string, data: number[]}[] = [];
@@ -96,8 +108,8 @@ export function unify(data: Data[], enabled: boolean[], normalizers: ((v: number
 }
 
 export function score(vals: number[], enabled: boolean[], normalizers: ((v: number) => number)[]): number {
-    const stddevCorrection = 1/Math.sqrt(enabled.filter(e => e).length);
-    return vals.map((v, i) => normalizers[i](v)).filter((_, i) => enabled[i]).reduce((a, b) => a + b, 0) * stddevCorrection;
+    const n = enabled.filter(e => e).length;
+    return vals.map((v, i) => normalizers[i](v)).filter((_, i) => enabled[i]).reduce((a, b) => a + b, 0) / n;
 }
 
 export function scoreToPctTxt(score: number): string {

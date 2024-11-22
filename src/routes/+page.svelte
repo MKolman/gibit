@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-    import {makeHistograms, unify, normalizer, type Data, gaussianRandom, score, scoreToPctTxt } from "$lib/stat"
+    import {makeHistograms, unify, normalizer, type Data, gaussianRandom, score, scoreToPctTxt, bojanScoreNormalizers } from "$lib/stat"
     import Chart from './Chart.svelte'
     import Picker from './Picker.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
 	import { page } from "$app/stores";
 	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups } from "$lib/groups";
+	import Toggle from "./Toggle.svelte";
 
     let exercises: string[] = [];
     let selectedExercises: [string, boolean][];
@@ -37,11 +38,12 @@
     $: selectedGroupsSet = new Set(selectedGroups);
     $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
     $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
-    $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, true);
-    $: normalizers = exercises.map((_, i) => normalizer(data.map(v => v.vals[i])));
+    $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
+    $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer(data.map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
     let tab = 0;
+    let useBojanScore = false;
     $: {
         if (tab === 2) {
             sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet, useLevelsAsGroups)]);
@@ -60,6 +62,13 @@
             .map((_, i) => colors[i%colors.length])
             .filter((_, i) => groups.some(g => doesGroupMatch(g, groupsList[i][0])));
     }
+    function formatNormalizedScore(score: number) {
+        if (useBojanScore) {
+            return score.toFixed(2);
+        } else {
+            return scoreToPctTxt(score);
+        }
+    }
 
 </script>
 <h1>Gibit analiza</h1>
@@ -71,7 +80,9 @@
 <div class="check-group">
     <Picker allTxt="Vse vaje" bind:values={selectedExercises} />
 </div>
-<label><input type="checkbox" bind:checked={useLevelsAsGroups} /> Uporabi stopnje kot skupine</label>
+<Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
+<br>
+<Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']} />
 <div class="check-group">
     <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:colors}/>
 </div>
@@ -131,10 +142,10 @@
                             {/each}
                         </span>
                     </td>
-                    <td>{scoreToPctTxt(score(data[idx].vals, selectedExercises.map(([_, v]) => v), normalizers))}</td>
+                    <td>{formatNormalizedScore(score(data[idx].vals, selectedExercises.map(([_, v]) => v), normalizers))}</td>
                     {#each selectedExercises as [_, visible], i}
                         {#if visible}
-                        <td>{data[idx].vals[i]} ({scoreToPctTxt(normalizers[i](data[idx].vals[i]))})</td>
+                        <td>{data[idx].vals[i]} ({formatNormalizedScore(normalizers[i](data[idx].vals[i]))})</td>
                         {/if}
                     {/each}
                 </tr>
@@ -147,7 +158,6 @@
 <h2>TODO</h2>
 <ul>
     <li>Poimenovanje osi na grafih</li>
-    <li>"Bojan" score</li>
     <li>Relativen score, glede na izbrane skupine</li>
     <li>Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
 </ul>
