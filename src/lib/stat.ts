@@ -25,7 +25,9 @@ export function makeHistograms(data: Data[], groups: string[], colors: string[],
     return data[0].vals.map((_, i) => makeDatasets(data, groups, i, isPct, colors))
 }
 
-function calcBuckets(min: number, max: number): {start: number; bucket: number; end: number} {
+function calcBuckets(data: number[]): {start: number; bucket: number; end: number} {
+    const min = Math.min(...data);
+    const max = Math.max(...data);
     let result = {start: min, bucket: 1, end: max};
     let bestScore = 1000;
     for (const bucket of [0.1, 0.5, 1, 2, 5, 10]) {
@@ -38,12 +40,15 @@ function calcBuckets(min: number, max: number): {start: number; bucket: number; 
             result = {start, bucket, end};
         }
     }
+    if (result.end === max) {
+        result.end += result.bucket;
+    }
     return result;
 }
 
 function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolean, colors: string[]): {labels: string[], datasets: {label: string, data: number[]}[]} {
     const round = (v: number) => isPct ? scoreToPctTxt(v): v;
-    const {start, bucket, end} = calcBuckets(Math.min(...data.map(d => d.vals[idx])), Math.max(...data.map(d => d.vals[idx])));
+    const {start, bucket, end} = calcBuckets(data.map(d => d.vals[idx]));
     data.sort((a, b) => a.vals[idx] - b.vals[idx]);
     const datasets: {label: string, data: number[]}[] = [];
     groups.forEach((g, i) => {
@@ -53,7 +58,7 @@ function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolea
         let count = 0;
         let names = [] as string[];
         for (const d of gData) {
-            while (d.vals[idx] >= prev + bucket + (prev + bucket === end?0.00001:0)) {
+            while (d.vals[idx] >= prev + bucket) {
                 set.data.push(count);
                 set.footer.push(names.join("\n"));
                 prev += bucket;
@@ -74,7 +79,6 @@ function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolea
     });
     const labels = [];
     for (let i = start; i < end; i += bucket) {
-        // labels.push(`[${scoreToPctTxt(i)}, ${scoreToPctTxt(i + bucket)})`);
         labels.push(bucket === 1?`${i}`:`[${i}, ${i + bucket})`);
     }
 
