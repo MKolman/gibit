@@ -163,6 +163,13 @@
     </table>
 {/if}
 
+<h2>TODO</h2>
+<ul>
+    <li>Najvecji stolpci na grafih vcasih izginejo</li>
+    <li>Poimenovanje osi na grafih</li>
+    <li>"Bojan" score</li>
+    <li>Relativen score, glede na izbrane skupine</li>
+</ul>
 <style>
     .tabs {
         display: flex;
