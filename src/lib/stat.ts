@@ -1,3 +1,5 @@
+import { doesGroupMatch } from "./groups";
+
 export type Data = {name: string; groups: string[]; vals: number[]};
 
 function stats(vals: number[]): {mean: number; std: number} {
@@ -53,7 +55,7 @@ function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolea
     const datasets: {label: string, data: number[]}[] = [];
     groups.forEach((g, i) => {
         const set = {label: g, backgroundColor: colors[i], footer: [] as string[], data: [] as number[]};
-        const gData = data.filter(d => d.groups.some(gr => gr.includes(g)));
+        const gData = data.filter(d => d.groups.some(gr => doesGroupMatch(gr, g)));
         let prev = start;
         let count = 0;
         let names = [] as string[];

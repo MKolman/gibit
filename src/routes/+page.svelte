@@ -5,8 +5,8 @@
     import Picker from './Picker.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
 	import { page } from "$app/stores";
+	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups } from "$lib/groups";
 
-    let colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
     let exercises: string[] = [];
     let selectedExercises: [string, boolean][];
     $: selectedExercises = exercises.map(v => [v, true]);
@@ -25,38 +25,17 @@
         }
         const key = await crypto.subtle.importKey("raw", b64ToBytes(pass), "AES-CBC", false, ["decrypt"]);
         const decrypted = await crypto.subtle.decrypt({name: "AES-CBC", iv: b64ToBytes('VoTyZIYxSqocdn6H/THSXw==')}, key, ecncrypted);
-        console.log(new TextDecoder().decode(decrypted));
         ({exercises, data} = JSON.parse(new TextDecoder().decode(decrypted)));
-        // ({exercises, data} = (await res.json() as {exercises: string[]; data: Data[]}))
         exercises = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
     } 
-    async function fetchGibitData() {
-        const res = await fetch("gibit.json");
-        ({exercises, data} = (await res.json() as {exercises: string[]; data: Data[]}))
-        exercises = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
-    } 
-    function isGroupSelected(groups: string[], selectedGroups: Set<string>) {
-        if (useLevelsAsGroups) {
-            for (const g1 of groups) {
-                for (const g2 of selectedGroups) {
-                    if (g1.includes(g2)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-        return groups.some((group) => selectedGroups.has(group));
-    }
     onMount(fetchGibitEncData);
-    let levels = ["osnovna", "rekreativna 1", "rekreativna 2", "nadaljevalna"]
     let useLevelsAsGroups = true;
     let groups: [string, boolean][];
-    $: groups = useLevelsAsGroups?levels.map(v => [v, true]):Array.from(new Set(data.flatMap(v => v.groups))).map(v => [v, true]);
+    $: groups = useLevelsAsGroups?levels.map(v => [v, true]):extractGroups(data).map(v => [v, true]);
     $: selectedGroups = groups.filter(([_, v]) => v).map(([v]) => v);
-    $: selectedColors = colors.filter((_, i) => groups[i]?.at(1));
+    $: selectedColors = groups.map((_, i) => colors[i % colors.length]).filter((_, i) => groups[i][1]);
     $: selectedGroupsSet = new Set(selectedGroups);
-    $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet));
+    $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
     $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
     $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, true);
     $: normalizers = exercises.map((_, i) => normalizer(data.map(v => v.vals[i])));
@@ -65,7 +44,7 @@
     let tab = 0;
     $: {
         if (tab === 2) {
-            sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet)]);
+            sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet, useLevelsAsGroups)]);
         } else {
             sortedPeople = [...selectedPeople]
         }
@@ -77,7 +56,9 @@
         return ti.map(({dataset, dataIndex}) => dataset.footer?.at(dataIndex)).join("\n");
     }
     function findColors(groups: string[], groupsList: [string, boolean][], colors: string[]) {
-        return groupsList.map((_, i) => colors[i%colors.length]).filter((_, i) => groups.some(g => g.includes(groupsList[i][0])));
+        return groupsList
+            .map((_, i) => colors[i%colors.length])
+            .filter((_, i) => groups.some(g => doesGroupMatch(g, groupsList[i][0])));
     }
 
 </script>
