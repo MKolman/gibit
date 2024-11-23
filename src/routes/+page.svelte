@@ -166,7 +166,6 @@
 <h2>TODO</h2>
 <ul>
     <li>FEAT: Poimenovanje osi na grafih</li>
-    <li>FEAT: Naslov in ikona strani</li>
     <li>FEAT: Zapomni si nastavitve in zavihek</li>
     <li>FEAT: Lepše oblikuj nastavitve</li>
     <li>BUG: Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
