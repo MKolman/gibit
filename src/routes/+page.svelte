@@ -209,11 +209,23 @@
     * {
         font-family: sans-serif;
     }
-    thead {
+    table {
+        max-width: 100%;
+        display: block;
+        overflow-x: auto;
+    }
+    td:nth-child(2), th:nth-child(2) {
+        position: sticky;
+        left: 0;
+    }
+    thead, thead th:nth-child(2) {
         background: #1c93d1;
         color: white;
     }
-    tbody tr:nth-child(odd) {
+    tbody tr:nth-child(even) td:nth-child(2) {
+        background: #fff;
+    }
+    tbody tr:nth-child(odd), tbody tr:nth-child(odd) td:nth-child(2) {
         background: #f0f0f0;
     }
 
