@@ -39,11 +39,12 @@
     $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
     $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
     $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
-    $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer(data.map(v => v.vals[i])));
+    $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
     let tab = 0;
     let useBojanScore = false;
+    let useRelativeScore = false;
     $: {
         if (tab === 2) {
             sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet, useLevelsAsGroups)]);
@@ -83,6 +84,13 @@
 <Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
 <br>
 <Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']} />
+{#if !useBojanScore}
+    <br>
+    <p>
+        Računaj percentile glede na:<br>
+        <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} />
+    </p>
+{/if}
 <div class="check-group">
     <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:colors}/>
 </div>
@@ -157,9 +165,12 @@
 
 <h2>TODO</h2>
 <ul>
-    <li>Poimenovanje osi na grafih</li>
-    <li>Relativen score, glede na izbrane skupine</li>
-    <li>Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
+    <li>FEAT: Poimenovanje osi na grafih</li>
+    <li>FEAT: Naslov in ikona strani</li>
+    <li>FEAT: Zapomni si nastavitve in zavihek</li>
+    <li>FEAT: Lepše oblikuj nastavitve</li>
+    <li>BUG: Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
+    <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
 </ul>
 <style>
     .tabs {
