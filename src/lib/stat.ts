@@ -91,9 +91,10 @@ function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolea
         }
         datasets.push(set);
     });
+    const isIntData = data.every(d => Number.isInteger(d.vals[idx]));
     const labels = [];
     for (let i = start; i < end; i += bucket) {
-        labels.push(bucket === 1?`${i}`:`[${i}, ${i + bucket})`);
+        labels.push(bucket === 1 && isIntData?`${i}`:`[${i}, ${i + bucket})`);
     }
 
     return {datasets, labels};
@@ -114,14 +115,6 @@ export function score(vals: number[], enabled: boolean[], normalizers: ((v: numb
 
 export function scoreToPctTxt(score: number): string {
     return `${(100 * (erf(score/Math.sqrt(2))/2+0.5)).toFixed(2)}%`;
-}
-// Standard Normal variate using Box-Muller transform.
-export function gaussianRandom(mean=0, stdev=1) {
-    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
-    const v = Math.random();
-    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-    // Transform to the desired mean and standard deviation:
-    return Math.round(z * stdev + mean);
 }
 
 function erf(x: number) {

@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-    import {makeHistograms, unify, normalizer, type Data, gaussianRandom, score, scoreToPctTxt, bojanScoreNormalizers } from "$lib/stat"
+    import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, bojanScoreNormalizers } from "$lib/stat"
     import Chart from './Chart.svelte'
     import Picker from './Picker.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
 	import { page } from "$app/stores";
 	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups } from "$lib/groups";
 	import Toggle from "./Toggle.svelte";
+	import { mergeDeep } from "$lib/merge";
 
-    let exercises: string[] = [];
+    const exercises: string[] = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
+    let originalExercises: string[] = exercises;
     let selectedExercises: [string, boolean][];
     $: selectedExercises = exercises.map(v => [v, true]);
     let data: Data[] = [];
@@ -26,8 +28,7 @@
         }
         const key = await crypto.subtle.importKey("raw", b64ToBytes(pass), "AES-CBC", false, ["decrypt"]);
         const decrypted = await crypto.subtle.decrypt({name: "AES-CBC", iv: b64ToBytes('VoTyZIYxSqocdn6H/THSXw==')}, key, ecncrypted);
-        ({exercises, data} = JSON.parse(new TextDecoder().decode(decrypted)));
-        exercises = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
+        ({exercises: originalExercises, data} = JSON.parse(new TextDecoder().decode(decrypted)));
     } 
     onMount(fetchGibitEncData);
     let useLevelsAsGroups = true;
@@ -70,6 +71,45 @@
             return scoreToPctTxt(score);
         }
     }
+    const defaultChartOptions = {
+        plugins: {
+            legend: {
+                display:false
+            },
+            tooltip: {
+                callbacks: {footer}
+            }
+        },
+        scales: {
+            x: {
+                stacked: true,
+                title: {
+                    display: true,
+                    text:"Vrednost",
+                },
+                ticks: {
+                    padding: 10,
+                },
+                grid: {
+                    offset: false,
+                    tickBorderDashOffset: 5,
+                }
+            },
+            y: {
+                title: {
+                    display: true,
+                    text:"Število ljudi"
+                },
+                stacked: true,
+                ticks: {
+                    precision: 0
+                },
+            }
+        }
+    }
+    function makeOptions(opts: object) {
+        return mergeDeep({}, defaultChartOptions, opts);
+    }
 
 </script>
 <h1>Gibit analiza</h1>
@@ -97,13 +137,13 @@
 {#if tab === 0}
     <h2>Skupna ocena</h2>
     <div class="chart">
-        <Chart config={{type: 'bar', data: totalHistogram[0], options: {plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}}, scales: {x:{stacked: true}, y: {stacked: true}}}}} />
+        <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:"Skupna ocena"}}}})}} />
     </div>
     {#each selectedExercises as [name, visible], i}
         {#if visible}
-        <h2>{name}</h2>
+        <h2>{originalExercises[i]}</h2>
         <div class="chart">
-            <Chart config={{type: 'bar', data: histogramData[i], options: {plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: true, ticks: {precision: 0}}}}}} />
+            <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
         </div>
         {/if}
     {/each}
@@ -165,7 +205,7 @@
 
 <h2>TODO</h2>
 <ul>
-    <li>FEAT: Poimenovanje osi na grafih</li>
+    <li>FEAT: Poimenovanje osi na vseh grafih</li>
     <li>FEAT: Zapomni si nastavitve in zavihek</li>
     <li>FEAT: Lepše oblikuj nastavitve</li>
     <li>BUG: Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
