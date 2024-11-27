@@ -17,27 +17,53 @@ def get_groups():
             result[row["IME"]].append(row["SKUPINA"][3:])
         return result
 
+def find_missing(name, groups):
+    result = []
+    for n in groups:
+        if name.lower() in n.lower():
+            result.append(n)
+    if len(result) == 1:
+        # print(f"Matched {name} to {result[0]}")
+        return result[0]
+    if len(result) == 0:
+        manual_maps = {
+            "simon kavčič": "Simon Kaučič",
+            "Ljubiša Radonjič": "Ljubiša Rudonjić",
+            "Valentyn KAzantcev": "Valentyn Kazantsev",
+        }
+        if name.strip() in manual_maps:
+            return find_missing(manual_maps[name.strip()], groups)
+        print(f"No match for {name}")
+        return None
+    print(f"Multiple matches for {name}: {result}")
+    return None
+
 def get_enc_data():
     import secrets
     try:
         with open('enc.json', 'r') as f:
             return json.load(f)
     except FileNotFoundError:
-        result = {"iv": secrets.token_hex(16), "key": secrets.token_hex(32)}
+        result = {"iv": secrets.token_hex(16), "key": secrets.token_hex(32), "god_iv": secrets.token_hex(16), "god_key": secrets.token_hex(32)}
         with open('enc.json', 'w') as f:
             json.dump(result, f)
         return result
             
 
-def save_data(data):
+def save_data(data, get_code):
     import os
     import base64
-    jdata = json.dumps(data)
     secrets = get_enc_data()
-    out = os.popen(f"printf {repr(jdata)} | openssl aes-256-cbc -K {secrets['key']} -base64 -iv {secrets['iv']}", mode='r').read()
+    jdata = json.dumps(data)
+    out = os.popen(f"printf {repr(jdata)} | openssl aes-256-cbc -K {secrets['god_key']} -base64 -iv {secrets['god_iv']}", mode='r').read()  
+    with open('../static/gibit_z_imeni.json.enc', 'wb') as f:
+        f.write(base64.b64decode(out))
     
-
-    with open('../static/gibit.json.enc', 'wb') as f:
+    for row in data["data"]:
+        row["name"] = get_code(row["name"])
+    jdata = json.dumps(data)
+    out = os.popen(f"printf {repr(jdata)} | openssl aes-256-cbc -K {secrets['key']} -base64 -iv {secrets['iv']}", mode='r').read()  
+    with open('../static/gibit_zivali.json.enc', 'wb') as f:
         f.write(base64.b64decode(out))
 
 def get_animals_mapping():
@@ -62,20 +88,23 @@ def main():
     headers, data = get_data()
     groups = get_groups()
     result = {"exercises": headers, "data": []}
-    get_code, persist_code = get_animals_mapping()
 
     for row in data:
         if row["Ime"] == "":
             break
         if row["Ime"] not in groups:
-            print(f"Skipping {row['Ime']}")
-            continue
+            if name := find_missing(row["Ime"], groups):
+                row["Ime"] = name
+            else:
+                print(f"Skipping {row['Ime']}")
+                continue
         result["data"].append({
-            "name": get_code(row["Ime"]),
+            "name": row["Ime"],
             "groups": groups[row["Ime"]],
             "vals": [int(row[header]) if row[header] else 0 for header in headers],
         })
-    save_data(result)
+    get_code, persist_code = get_animals_mapping()
+    save_data(result, get_code)
     persist_code()
     # print(*sorted(set(sum([r["group"] for r in result["data"]], []))), sep="\n")
     

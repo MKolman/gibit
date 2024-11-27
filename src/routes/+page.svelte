@@ -18,18 +18,37 @@
         return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     }
     async function fetchGibitEncData() {
-        const res = await fetch("gibit.json.enc");
-        const ecncrypted = await res.arrayBuffer();
-        const pass = $page.url.searchParams.get("pass");
-        if (!pass) {
+        const search = $page.url.searchParams;
+        if (search.has("godmode")) {
+            if (search.has("removegodpass")) {
+                localStorage.removeItem("godpass");
+            }
+            let godPass = localStorage.getItem("godpass");
+            if (!godPass) {
+                godPass = prompt("Vnesi geslo za dostop");
+                if (godPass) {
+                    localStorage.setItem("godpass", godPass);
+                }
+            }
+            const res = await fetch("gibit_z_imeni.json.enc");
+            loadGibitData(res, godPass, 'w+9dASOcmhEPhwmKn5IE4g==')
+        } else {
+            const res = await fetch("gibit_zivali.json.enc");
+            await loadGibitData(res, $page.url.searchParams.get("pass"), 'VoTyZIYxSqocdn6H/THSXw==')
+        }
+    }
+    async function loadGibitData(dataEnc: Response, keyB64: string|null, ivB64: string) {
+        const ecncrypted = await dataEnc.arrayBuffer();
+        if (!keyB64) {
             console.error("No password provided");
             alert("No password provided");
             return;
         }
-        const key = await crypto.subtle.importKey("raw", b64ToBytes(pass), "AES-CBC", false, ["decrypt"]);
-        const decrypted = await crypto.subtle.decrypt({name: "AES-CBC", iv: b64ToBytes('VoTyZIYxSqocdn6H/THSXw==')}, key, ecncrypted);
+        const key = await crypto.subtle.importKey("raw", b64ToBytes(keyB64), "AES-CBC", false, ["decrypt"]);
+        const decrypted = await crypto.subtle.decrypt({name: "AES-CBC", iv: b64ToBytes(ivB64)}, key, ecncrypted);
         ({exercises: originalExercises, data} = JSON.parse(new TextDecoder().decode(decrypted)));
-    } 
+
+    }
     onMount(fetchGibitEncData);
     let useLevelsAsGroups = true;
     let groups: [string, boolean][];
