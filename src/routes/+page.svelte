@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-    import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, bojanScoreNormalizers } from "$lib/stat"
+    import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, bojanScoreNormalizers, makeCandles } from "$lib/stat"
     import Chart from './Chart.svelte'
     import Picker from './Picker.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
@@ -8,48 +8,20 @@
 	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups } from "$lib/groups";
 	import Toggle from "./Toggle.svelte";
 	import { mergeDeep } from "$lib/merge";
+	import { fetchGibitEncData } from "$lib/fetchData";
 
     const exercises: string[] = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
     let originalExercises: string[] = exercises;
     let selectedExercises: [string, boolean][];
     $: selectedExercises = exercises.map(v => [v, true]);
     let data: Data[] = [];
-    function b64ToBytes(b64: string): Uint8Array {
-        return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    }
-    async function fetchGibitEncData() {
-        const search = $page.url.searchParams;
-        if (search.has("godmode")) {
-            if (search.has("removegodpass")) {
-                localStorage.removeItem("godpass");
+    onMount(() => {
+        fetchGibitEncData($page.url.searchParams).then(v => {
+            if (v) {
+                ({exercises: originalExercises, data} = v);
             }
-            let godPass = localStorage.getItem("godpass");
-            if (!godPass) {
-                godPass = prompt("Vnesi geslo za dostop");
-                if (godPass) {
-                    localStorage.setItem("godpass", godPass);
-                }
-            }
-            const res = await fetch("gibit_z_imeni.json.enc");
-            loadGibitData(res, godPass, 'w+9dASOcmhEPhwmKn5IE4g==')
-        } else {
-            const res = await fetch("gibit_zivali.json.enc");
-            await loadGibitData(res, $page.url.searchParams.get("pass"), 'VoTyZIYxSqocdn6H/THSXw==')
-        }
-    }
-    async function loadGibitData(dataEnc: Response, keyB64: string|null, ivB64: string) {
-        const ecncrypted = await dataEnc.arrayBuffer();
-        if (!keyB64) {
-            console.error("No password provided");
-            alert("No password provided");
-            return;
-        }
-        const key = await crypto.subtle.importKey("raw", b64ToBytes(keyB64), "AES-CBC", false, ["decrypt"]);
-        const decrypted = await crypto.subtle.decrypt({name: "AES-CBC", iv: b64ToBytes(ivB64)}, key, ecncrypted);
-        ({exercises: originalExercises, data} = JSON.parse(new TextDecoder().decode(decrypted)));
-
-    }
-    onMount(fetchGibitEncData);
+        })
+    });
     let useLevelsAsGroups = true;
     let groups: [string, boolean][];
     $: groups = useLevelsAsGroups?levels.map(v => [v, true]):extractGroups(data).map(v => [v, true]);
@@ -59,10 +31,12 @@
     $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
     $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
     $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
+    $: candles = makeCandles(filteredData, selectedGroups);
+    $: totalCandles = makeCandles(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, !useBojanScore);
     $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
-    let tab = 0;
+    let tab = 3;
     let useBojanScore = false;
     let useRelativeScore = false;
     $: {
@@ -77,6 +51,10 @@
     function footer(tooltipItems: any) {
         const ti = tooltipItems as {dataset: {footer: string[]}, dataIndex: number}[];
         return ti.map(({dataset, dataIndex}) => dataset.footer?.at(dataIndex)).join("\n");
+    }
+    function dataLabel(tooltipItem: any) {
+        const ti = tooltipItem as {dataset: {dataLabel: string[]}, dataIndex: number};
+        return ti.dataset.dataLabel?.at(ti.dataIndex);
     }
     function findColors(groups: string[], groupsList: [string, boolean][], colors: string[]) {
         return groupsList
@@ -96,7 +74,7 @@
                 display:false
             },
             tooltip: {
-                callbacks: {footer}
+                callbacks: {footer, label: dataLabel},
             }
         },
         scales: {
@@ -105,9 +83,6 @@
                 title: {
                     display: true,
                     text:"Vrednost",
-                },
-                ticks: {
-                    padding: 10,
                 },
                 grid: {
                     offset: false,
@@ -130,11 +105,16 @@
         return mergeDeep({}, defaultChartOptions, opts);
     }
 
+    function makeCandleOptions(opts: object) {
+        return mergeDeep({}, defaultChartOptions, {scales: {x: {type: "category", title: {display: false}, ticks: {autoSkip: false, maxRotation: 90, padding: 10}}}}, opts);
+    }
+
 </script>
 <h1>Gibit analiza</h1>
 <div class="tabs">
-    <button class:active={tab === 0} on:click={() => tab = 0}>Skupine</button>
-    <button class:active={tab === 1} on:click={() => tab = 1}>Posamezniki</button>
+    <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
+    <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
+    <button class:active={tab === 1} on:click={() => tab = 1}>Izbrani</button>
     <button class:active={tab === 2} on:click={() => tab = 2}>Tabela</button>
 </div>
 <div class="check-group">
@@ -156,13 +136,27 @@
 {#if tab === 0}
     <h2>Skupna ocena</h2>
     <div class="chart">
-        <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:"Skupna ocena"}}}})}} />
+        <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
     </div>
     {#each selectedExercises as [name, visible], i}
         {#if visible}
         <h2>{originalExercises[i]}</h2>
         <div class="chart">
             <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
+        </div>
+        {/if}
+    {/each}
+{/if}
+{#if tab === 3}
+    <h2>Skupna ocena</h2>
+    <div class="chart">
+        <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
+    </div>
+    {#each selectedExercises as [name, visible], i}
+        {#if visible}
+        <h2>{originalExercises[i]}</h2>
+        <div class="chart">
+            <Chart config={{type: 'candlestick', data: candles[i], options: makeCandleOptions({scales: {y:{title:{text:name}}}})}} />
         </div>
         {/if}
     {/each}

@@ -2,10 +2,10 @@ import { doesGroupMatch } from "./groups";
 
 export type Data = {name: string; groups: string[]; vals: number[]};
 
-function stats(vals: number[]): {mean: number; std: number} {
+function stats(vals: number[]): {mean: number; std: number, max: number, min: number} {
     const mean = vals.reduce((a, b) => a + b) / vals.length;
     const std = Math.sqrt(vals.map(val => Math.pow(val - mean, 2)).reduce((a, b) => a + b) / vals.length);
-    return {mean, std}
+    return {mean, std, max: Math.max(...vals), min: Math.min(...vals)};
 }
 
 export function normalizer(vals: number[]): (val: number) => number {
@@ -98,6 +98,36 @@ function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolea
     }
 
     return {datasets, labels};
+}
+
+export function makeCandles(data: Data[], groups: string[], isPct: boolean = false) {
+    if (data.length === 0) {
+        return [];
+    }
+    const fmt = (v: number) => isPct ? scoreToPctTxt(v): Number.isInteger(v)?v:v.toFixed(2);
+    return data[0].vals.map((_, i) => {
+        const dataset = makeGroupCandleDataset(data, groups, i);
+        dataset.sort((a, b) => a.mean - b.mean);
+        return {labels: dataset.map(v => v.group), datasets: [{
+            data: dataset.map((vals, x) => {
+                return {x, l: vals.min, o: vals.mean - vals.std, c: vals.mean + vals.std, h: vals.max, };
+            }),
+            dataLabel: dataset.map(v => `${fmt(v.mean - v.std)} - ${fmt(v.mean + v.std)}`),
+            footer: dataset.map(v => `Povp.: ${fmt(v.mean)}\nMin: ${fmt(v.min)}\nMax: ${fmt(v.max)}` + (isPct?'':`\nStd: ${v.std.toFixed(2)}`)),
+        }]}
+    });
+}
+
+type GroupCandle = {group: string; mean: number; std: number; min: number; max: number; ppl: {score: number, name: string}[]};
+function makeGroupCandleDataset(data: Data[], groups: string[], idx: number): GroupCandle[] {
+    const result: GroupCandle[] = [];
+    for (const group of groups) {
+        const gData = data.filter(d => d.groups.some(gr => doesGroupMatch(gr, group)));
+        const vals = gData.map(d => d.vals[idx]);
+        const row = {group, ...stats(vals), ppl: gData.map(d => ({score: d.vals[idx], name: d.name}))};
+        result.push(row);
+    }
+    return result;
 }
 
 export function unify(data: Data[], enabled: boolean[], normalizers: ((v: number) => number)[]): Data[] {
