@@ -206,7 +206,13 @@
                     <td>{formatNormalizedScore(score(data[idx].vals, selectedExercises.map(([_, v]) => v), normalizers))}</td>
                     {#each selectedExercises as [_, visible], i}
                         {#if visible}
-                        <td>{data[idx].vals[i]} ({formatNormalizedScore(normalizers[i](data[idx].vals[i]))})</td>
+                        <td>
+                            {#if data[idx].vals[i] !== null}
+                                {data[idx].vals[i]} ({formatNormalizedScore(normalizers[i](data[idx].vals[i]))})
+                            {:else}
+                                /
+                            {/if}
+                        </td>
                         {/if}
                     {/each}
                 </tr>

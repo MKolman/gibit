@@ -3,7 +3,7 @@ import json
 from collections import defaultdict as dd
 
 def get_data():
-    with open('data_2024_11_22.csv', 'r') as f:
+    with open('data_2024_12_08.csv', 'r') as f:
         reader = csv.DictReader(f)
         # print(reader.fieldnames[3:-3])
         return reader.fieldnames[5:-3], list(reader)
@@ -60,7 +60,10 @@ def save_data(data, get_code):
         f.write(base64.b64decode(out))
     
     for row in data["data"]:
-        row["name"] = get_code(row["name"])
+        try:
+            row["name"] = get_code(row["name"])
+        except KeyError:
+            print(f"Missing code for {row['name']}")
     jdata = json.dumps(data)
     out = os.popen(f"printf {repr(jdata)} | openssl aes-256-cbc -K {secrets['key']} -base64 -iv {secrets['iv']}", mode='r').read()  
     with open('../static/gibit_zivali.json.enc', 'wb') as f:
@@ -101,7 +104,7 @@ def main():
         result["data"].append({
             "name": row["Ime"],
             "groups": groups[row["Ime"]],
-            "vals": [int(row[header]) if row[header] else 0 for header in headers],
+            "vals": [int(row[header]) if row[header] else None for header in headers],
         })
     get_code, persist_code = get_animals_mapping()
     save_data(result, get_code)

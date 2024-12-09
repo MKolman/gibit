@@ -2,7 +2,6 @@
 	import { OhlcElement, OhlcController, CandlestickElement, CandlestickController } from 'chartjs-chart-financial'
 	import Chart from 'chart.js/auto';
 	import { type ChartConfiguration as Config } from 'chart.js';
-	import 'chartjs-adapter-date-fns';
 	Chart.register(OhlcElement, OhlcController, CandlestickElement, CandlestickController)
 
 </script>
