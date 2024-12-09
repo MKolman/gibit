@@ -36,7 +36,7 @@
     $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
-    let tab = 3;
+    let tab = 0;
     let useBojanScore = false;
     let useRelativeScore = false;
     $: {
