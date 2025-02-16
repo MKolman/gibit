@@ -1,5 +1,4 @@
-import { doesGroupMatch } from "./groups";
-
+import { doesGroupMatch, type GroupBreakdown } from "./groups";
 export type Data = {name: string; groups: string[]; vals: number[]};
 
 function stats(vals: number[]): {mean: number; std: number, max: number, min: number} {
@@ -32,11 +31,11 @@ export const bojanScoreNormalizers = [
     (val: number) => val/5,
 ]
 
-export function makeHistograms(data: Data[], groups: string[], colors: string[], isPct: boolean = false): {datasets: {label: string, data: number[]}[]; labels: string[]}[] {
+export function makeHistograms(data: Data[], groups: string[]|GroupBreakdown[], colors: string[], isPct: boolean = false): {datasets: {label: string, data: number[]}[]; labels: string[]}[] {
     if (data.length === 0) {
         return [];
     }
-    return data[0].vals.map((_, i) => makeDatasets(data, groups, i, isPct, colors))
+    return data[0].vals.map((_, i) => makeDatasets(data, groups.map(v => ((v as GroupBreakdown).name || v as string)), i, isPct, colors))
 }
 
 function calcBuckets(data: number[]): {start: number; bucket: number; end: number} {
@@ -101,7 +100,7 @@ function makeDatasets(data: Data[], groups: string[], idx: number, isPct: boolea
     return {datasets, labels};
 }
 
-export function makeCandles(data: Data[], groups: string[], isPct: boolean = false) {
+export function makeCandles(data: Data[], groups: string[]|GroupBreakdown[], colors: string[], isPct: boolean = false) {
     if (data.length === 0) {
         return [];
     }
@@ -113,20 +112,25 @@ export function makeCandles(data: Data[], groups: string[], isPct: boolean = fal
             data: dataset.map((vals, x) => {
                 return {x, l: vals.min, o: vals.mean - vals.std, c: vals.mean + vals.std, h: vals.max, };
             }),
+            titles: groups.map(g => (g as GroupBreakdown).name || g as string),
             dataLabel: dataset.map(v => `${fmt(v.mean - v.std)} - ${fmt(v.mean + v.std)}`),
             footer: dataset.map(v => `Povp.: ${fmt(v.mean)}\nMin: ${fmt(v.min)}\nMax: ${fmt(v.max)}` + (isPct?'':`\nStd: ${v.std.toFixed(2)}`)),
+            backgroundColors: colors.map(color => ({
+                up: color,
+            })),
+            borderColors: { up: "black"},
         }]}
     });
 }
 
 type GroupCandle = {group: string; mean: number; std: number; min: number; max: number; ppl: {score: number, name: string}[]};
-function makeGroupCandleDataset(data: Data[], groups: string[], idx: number): GroupCandle[] {
+function makeGroupCandleDataset(data: Data[], groups: string[]|GroupBreakdown[], idx: number): GroupCandle[] {
     data = data.filter(d => d.vals[idx] !== null);
     const result: GroupCandle[] = [];
     for (const group of groups) {
-        const gData = data.filter(d => d.groups.some(gr => doesGroupMatch(gr, group)));
+        const gData = data.filter(d => d.groups.some(gr => doesGroupMatch(gr, (group as GroupBreakdown).name || group as string)));
         const vals = gData.map(d => d.vals[idx]);
-        const row = {group, ...stats(vals), ppl: gData.map(d => ({score: d.vals[idx], name: d.name}))};
+        const row = {group: (group as GroupBreakdown).shortName || group as string, ...stats(vals), ppl: gData.map(d => ({score: d.vals[idx], name: d.name}))};
         result.push(row);
     }
     return result;

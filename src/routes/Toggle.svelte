@@ -16,7 +16,7 @@
         display: inline-block;
         width: 2em;
         height: 1em;
-        border-radius: 1em;
+        border-radius: 5px;
         border: 1px solid #1c93d1;
     }
     .toggle:before {
@@ -25,7 +25,7 @@
         width: 1em;
         height: 1em;
         background: #1c93d1;
-        border-radius: 1em;
+        border-radius: 4px;
         transition: 0.3s;
     }
     input:checked + .toggle:before {

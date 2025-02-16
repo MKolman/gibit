@@ -5,7 +5,7 @@
     import Picker from './Picker.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
 	import { page } from "$app/stores";
-	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups } from "$lib/groups";
+	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups, type GroupBreakdown, getGroupColors } from "$lib/groups";
 	import Toggle from "./Toggle.svelte";
 	import { mergeDeep } from "$lib/merge";
 	import { fetchGibitEncData } from "$lib/fetchData";
@@ -23,21 +23,22 @@
         })
     });
     let useLevelsAsGroups = true;
-    let groups: [string, boolean][];
+    let groups: [string, boolean][]|[GroupBreakdown, boolean][];
     $: groups = useLevelsAsGroups?levels.map(v => [v, true]):extractGroups(data).map(v => [v, true]);
-    $: selectedGroups = groups.filter(([_, v]) => v).map(([v]) => v);
-    $: selectedColors = groups.map((_, i) => colors[i % colors.length]).filter((_, i) => groups[i][1]);
-    $: selectedGroupsSet = new Set(selectedGroups);
+    $: selectedGroups = groups.filter(([_, v]) => v).map(([v]) => v) as string[] | GroupBreakdown[];
+    $: allColors = getGroupColors(groups.map(([v]) => v) as string[] | GroupBreakdown[])
+    $: selectedColors = groups.map((_, i) => allColors[i]).filter((_, i) => groups[i][1]);
+    $: selectedGroupsSet = new Set(selectedGroups.map(v => ((v as GroupBreakdown).name) || v as string));
     $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
     $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
     $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
-    $: candles = makeCandles(filteredData, selectedGroups);
-    $: totalCandles = makeCandles(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, !useBojanScore);
+    $: candles = makeCandles(filteredData, selectedGroups, selectedColors);
+    $: totalCandles = makeCandles(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
     $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
     let tab = 0;
-    let useBojanScore = false;
+    let useBojanScore = true;
     let useRelativeScore = false;
     $: {
         if (tab === 2) {
@@ -52,14 +53,18 @@
         const ti = tooltipItems as {dataset: {footer: string[]}, dataIndex: number}[];
         return ti.map(({dataset, dataIndex}) => dataset.footer?.at(dataIndex)).join("\n");
     }
+    function titleLabel(tooltipItems: any) {
+        const ti = tooltipItems as {dataset: {titles: string[]}, dataIndex: number}[];
+        return ti.map(({dataset, dataIndex}) => dataset.titles?.at(dataIndex)).join("\n");
+    }
     function dataLabel(tooltipItem: any) {
         const ti = tooltipItem as {dataset: {dataLabel: string[]}, dataIndex: number};
         return ti.dataset.dataLabel?.at(ti.dataIndex);
     }
-    function findColors(groups: string[], groupsList: [string, boolean][], colors: string[]) {
+    function findColors(groups: string[], groupsList: [string, boolean][]|[GroupBreakdown, boolean][], colors: string[]) {
         return groupsList
             .map((_, i) => colors[i%colors.length])
-            .filter((_, i) => groups.some(g => doesGroupMatch(g, groupsList[i][0])));
+            .filter((_, i) => groups.some(g => doesGroupMatch(g, (groupsList[i][0] as GroupBreakdown).name || groupsList[i][0] as string)));
     }
     function formatNormalizedScore(score: number) {
         if (useBojanScore) {
@@ -74,7 +79,7 @@
                 display:false
             },
             tooltip: {
-                callbacks: {footer, label: dataLabel},
+                callbacks: {footer, label: dataLabel, title: titleLabel},
             }
         },
         scales: {
@@ -120,8 +125,6 @@
 <div class="check-group">
     <Picker allTxt="Vse vaje" bind:values={selectedExercises} />
 </div>
-<Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
-<br>
 <Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']} />
 {#if !useBojanScore}
     <br>
@@ -130,8 +133,10 @@
         <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} />
     </p>
 {/if}
+<br>
+<Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
 <div class="check-group">
-    <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:colors}/>
+    <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
 </div>
 {#if tab === 0}
     <h2>Skupna ocena</h2>
@@ -165,7 +170,7 @@
     <div class="check-group">
         <Picker allTxt="Vsi izbrani" bind:values={selectedPeople} labels={selectedPeople.map(([idx]) => data[idx].name)} alt={2} colors={colors}/>
     </div>
-    <div class="check-group">
+    <div class="check-group" style="flex-direction: row">
         <PeopleSearch list={data.map(v => v.name)} disallow={selectedPeople.map(([v]) => v)} onclick={idx => selectedPeople = [...selectedPeople, [idx, true]]} />
     </div>
 
@@ -198,7 +203,7 @@
                     <td>
                         {data[idx].groups.join(', ')}
                         <span class="group-colors">
-                            {#each findColors(data[idx].groups, groups, colors) as color}
+                            {#each findColors(data[idx].groups, groups, allColors) as color}
                             <span style="background: {color};"></span>
                             {/each}
                         </span>
@@ -249,7 +254,7 @@
     }
     .check-group {
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         flex-wrap: wrap;
     }
     .group-colors {

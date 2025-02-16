@@ -33,6 +33,7 @@
 	},
 	"dependencies": {
 		"chart.js": "^4.4.6",
-		"chartjs-chart-financial": "^0.2.1"
+		"chartjs-chart-financial": "^0.2.1",
+		"patternomaly": "^1.3.2"
 	}
 }

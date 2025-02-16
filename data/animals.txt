@@ -159,3 +159,6 @@ Ostriga
 Stonoga
 Raca
 Pangolin
+Okapi
+Aksolotl
+Nartničar
