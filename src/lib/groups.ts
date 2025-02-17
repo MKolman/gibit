@@ -100,7 +100,7 @@ export function parseGroups(groups: string[]): GroupBreakdown[] {
             day,
             location,
             index,
-            shortName: `${day[0]}_${nameShorteners.get(level)||level}_${nameShorteners.get(location)||location}`,
+            shortName: `${nameShorteners.get(level)||level}_${day[0]}_${nameShorteners.get(location)||location}`,
         }
     });
 }

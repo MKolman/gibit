@@ -106,18 +106,22 @@ export function makeCandles(data: Data[], groups: string[]|GroupBreakdown[], col
     }
     const fmt = (v: number) => isPct ? scoreToPctTxt(v): Number.isInteger(v)?v:v.toFixed(2);
     return data[0].vals.map((_, i) => {
-        const dataset = makeGroupCandleDataset(data, groups, i);
-        dataset.sort((a, b) => a.mean - b.mean);
+        let dataset = makeGroupCandleDataset(data, groups, i);
+        const combinedValues = dataset.map((d, i) => ({d, c:colors[i], n: (groups[i] as GroupBreakdown).name || groups[i] as string}))
+        combinedValues.sort((a, b) => a.d.mean - b.d.mean)
+
+        dataset = combinedValues.map(({d}) => d)
+        const titles = combinedValues.map(({n}) => n)
+        const backgroundColors = combinedValues.map(({c}) => ({up:c}))
         return {labels: dataset.map(v => v.group), datasets: [{
             data: dataset.map((vals, x) => {
                 return {x, l: vals.min, o: vals.mean - vals.std, c: vals.mean + vals.std, h: vals.max, };
             }),
-            titles: groups.map(g => (g as GroupBreakdown).name || g as string),
+            titles,
             dataLabel: dataset.map(v => `${fmt(v.mean - v.std)} - ${fmt(v.mean + v.std)}`),
             footer: dataset.map(v => `Povp.: ${fmt(v.mean)}\nMin: ${fmt(v.min)}\nMax: ${fmt(v.max)}` + (isPct?'':`\nStd: ${v.std.toFixed(2)}`)),
-            backgroundColors: colors.map(color => ({
-                up: color,
-            })),
+            backgroundColors,
+            backgroundColor: backgroundColors.map(({up}) => up),
             borderColors: { up: "black"},
         }]}
     });
