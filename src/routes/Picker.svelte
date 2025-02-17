@@ -33,7 +33,6 @@
     })
     function initColors(colors: string[]) {
         if (!ctx || !sections) {
-            console.log("NOT", ctx, sections)
             return
         }
         backgroundUrls = colors.map((color) => {
@@ -41,7 +40,6 @@
             ctx.fillRect(0, 0, 300, 300)
             return canvas.toDataURL()
         })
-        console.log(backgroundUrls)
     }
     $: initColors(colors||[])
 </script>

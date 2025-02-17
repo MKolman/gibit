@@ -16,7 +16,6 @@ const patterns = ["line", "dot", "line-vertical", "square"]
 
 export function getGroupColors(groups: string[]|GroupBreakdown[]): string[] {
     if (groups.length > 0 && typeof groups[0] === 'string') {
-        console.log("groups", groups)
         return groups.map(v => levelColors.get(v as string)) as string[]
     }
     const colors = ((groups as GroupBreakdown[]).map(({level}) => levelColors.get(level)) as string[]) as any as string[]
@@ -25,7 +24,6 @@ export function getGroupColors(groups: string[]|GroupBreakdown[]): string[] {
         const cnt = count.get(colors[i]) || 0
         count.set(colors[i], cnt + 1)
         if (cnt != 0) {
-            // colors[i] = pattern.generate([colors[i]])[0] as any as string
             colors[i] = pattern.draw(patterns[cnt-1] as any, colors[i], "rgba(0, 0, 0, 0.5)") as any as string
         }
     }
