@@ -14,11 +14,14 @@ const levelColors: Map<string, string> = new Map([
 
 const patterns = ["line", "dot", "line-vertical", "square"]
 
-export function getGroupColors(groups: string[]|GroupBreakdown[]): string[] {
+export function getGroupColors(groups: string[]|GroupBreakdown[], makePatterns: boolean = false): string[] {
     if (groups.length > 0 && typeof groups[0] === 'string') {
         return groups.map(v => levelColors.get(v as string)) as string[]
     }
     const colors = ((groups as GroupBreakdown[]).map(({level}) => levelColors.get(level)) as string[]) as any as string[]
+    if (!makePatterns) {
+        return colors
+    }
     const count: Map<string, number> = new Map();
     for (let i = 0; i < colors.length; i++) {
         const cnt = count.get(colors[i]) || 0

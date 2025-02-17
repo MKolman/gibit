@@ -26,7 +26,7 @@
     let groups: [string, boolean][]|[GroupBreakdown, boolean][];
     $: groups = useLevelsAsGroups?levels.map(v => [v, true]):extractGroups(data).map(v => [v, true]);
     $: selectedGroups = groups.filter(([_, v]) => v).map(([v]) => v) as string[] | GroupBreakdown[];
-    $: allColors = getGroupColors(groups.map(([v]) => v) as string[] | GroupBreakdown[])
+    $: allColors = getGroupColors(groups.map(([v]) => v) as string[] | GroupBreakdown[], true)
     $: selectedColors = groups.map((_, i) => allColors[i]).filter((_, i) => groups[i][1]);
     $: selectedGroupsSet = new Set(selectedGroups.map(v => ((v as GroupBreakdown).name) || v as string));
     $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
@@ -61,10 +61,10 @@
         const ti = tooltipItem as {dataset: {dataLabel: string[]}, dataIndex: number};
         return ti.dataset.dataLabel?.at(ti.dataIndex);
     }
-    function findColors(groups: string[], groupsList: [string, boolean][]|[GroupBreakdown, boolean][], colors: string[]) {
-        return groupsList
-            .map((_, i) => colors[i%colors.length])
-            .filter((_, i) => groups.some(g => doesGroupMatch(g, (groupsList[i][0] as GroupBreakdown).name || groupsList[i][0] as string)));
+    function findColors(groups: string[], groupsList: [string, boolean][]|[GroupBreakdown, boolean][]) {
+        return getGroupColors(groups.map((group) => 
+            (groupsList.find(([g]) => doesGroupMatch(group, (g as GroupBreakdown).name || g as string))||["red"])[0] as any as string
+        ), false) as string[]
     }
     function formatNormalizedScore(score: number) {
         if (useBojanScore) {
@@ -203,7 +203,7 @@
                     <td>
                         {data[idx].groups.join(', ')}
                         <span class="group-colors">
-                            {#each findColors(data[idx].groups, groups, allColors) as color}
+                            {#each findColors(data[idx].groups, groups) as color}
                             <span style="background: {color};"></span>
                             {/each}
                         </span>
