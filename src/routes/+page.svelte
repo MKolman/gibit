@@ -115,7 +115,7 @@
     }
 
 </script>
-<h1>GIBIT ODBOJKARSKI KARTON</h1>
+<h1><img src="/static/white_rabbit.png" alt="gibit logo">GIBIT ODBOJKARSKI KARTON</h1>
 <div class="tabs">
     <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
     <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
@@ -238,7 +238,10 @@
 </div>
 <style>
     :global(body) {
-        margin: 0
+        margin: 0;
+    }
+    :global(body) * {
+        font-family: "Ubuntu", sans;
     }
     h1 {
         background-color: #1c93d1;
