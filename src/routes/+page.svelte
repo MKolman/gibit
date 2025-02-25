@@ -115,147 +115,170 @@
     }
 
 </script>
-<h1>Gibit analiza</h1>
+<h1>GIBIT ODBOJKARSKI KARTON</h1>
 <div class="tabs">
     <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
     <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
     <button class:active={tab === 1} on:click={() => tab = 1}>Izbrani</button>
     <button class:active={tab === 2} on:click={() => tab = 2}>Tabela</button>
 </div>
-<div class="check-group">
-    <Picker allTxt="Vse vaje" bind:values={selectedExercises} />
-</div>
-<Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']} />
-{#if !useBojanScore}
-    <br>
-    <p>
-        Računaj percentile glede na:<br>
-        <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} />
-    </p>
-{/if}
-<br>
-<Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
-<div class="check-group">
-    <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
-</div>
-{#if tab === 0}
-    <h2>Skupna ocena</h2>
-    <div class="chart">
-        <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
-    </div>
-    {#each selectedExercises as [name, visible], i}
-        {#if visible}
-        <h2>{originalExercises[i]}</h2>
-        <div class="chart">
-            <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
-        </div>
-        {/if}
-    {/each}
-{/if}
-{#if tab === 3}
-    <h2>Skupna ocena</h2>
-    <div class="chart">
-        <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
-    </div>
-    {#each selectedExercises as [name, visible], i}
-        {#if visible}
-        <h2>{originalExercises[i]}</h2>
-        <div class="chart">
-            <Chart config={{type: 'candlestick', data: candles[i], options: makeCandleOptions({scales: {y:{title:{text:name}}}})}} />
-        </div>
-        {/if}
-    {/each}
-{/if}
-{#if tab === 1}
+<div class="wrapper">
     <div class="check-group">
-        <Picker allTxt="Vsi izbrani" bind:values={selectedPeople} labels={selectedPeople.map(([idx]) => data[idx].name)} alt={2} colors={colors}/>
+        <Picker allTxt="Vse vaje" bind:values={selectedExercises} />
     </div>
-    <div class="check-group" style="flex-direction: row">
-        <PeopleSearch list={data.map(v => v.name)} disallow={selectedPeople.map(([v]) => v)} onclick={idx => selectedPeople = [...selectedPeople, [idx, true]]} />
+    <Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']} />
+    {#if !useBojanScore}
+        <br>
+        <p>
+            Računaj percentile glede na:<br>
+            <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} />
+        </p>
+    {/if}
+    <br>
+    <Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
+    <div class="check-group">
+        <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
     </div>
+    {#if tab === 0}
+        <h2>Skupna ocena</h2>
+        <div class="chart">
+            <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
+        </div>
+        {#each selectedExercises as [name, visible], i}
+            {#if visible}
+            <h2>{originalExercises[i]}</h2>
+            <div class="chart">
+                <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
+            </div>
+            {/if}
+        {/each}
+    {/if}
+    {#if tab === 3}
+        <h2>Skupna ocena</h2>
+        <div class="chart">
+            <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
+        </div>
+        {#each selectedExercises as [name, visible], i}
+            {#if visible}
+            <h2>{originalExercises[i]}</h2>
+            <div class="chart">
+                <Chart config={{type: 'candlestick', data: candles[i], options: makeCandleOptions({scales: {y:{title:{text:name}}}})}} />
+            </div>
+            {/if}
+        {/each}
+    {/if}
+    {#if tab === 1}
+        <div class="check-group">
+            <Picker allTxt="Vsi izbrani" bind:values={selectedPeople} labels={selectedPeople.map(([idx]) => data[idx].name)} alt={2} colors={colors}/>
+        </div>
+        <div class="check-group" style="flex-direction: row">
+            <PeopleSearch list={data.map(v => v.name)} disallow={selectedPeople.map(([v]) => v)} onclick={idx => selectedPeople = [...selectedPeople, [idx, true]]} />
+        </div>
 
-    <h2>Primerjava ljudi</h2>
-    <div class="chart">
-        <Chart config={{type: 'line', data: {labels: selectedExercises.filter(([_, v])=>v).map(([v]) => v), datasets: selectedPeople.filter(([_, v]) => v).map(([i]) => ({label: data[i].name, data: data[i].vals.map((v, j) => normalizers[j](v)).filter((_, i) => selectedExercises[i][1])}))}, options: {plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: false}}}}} />
-    </div>
-{/if}
-{#if tab === 1 || tab === 2}
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Ime</th>
-                <th>Skupina</th>
-                <th>Skupna ocena</th>
-                {#each selectedExercises as [name, visible], i}
-                    {#if visible}
-                    <th>{name}</th>
-                    {/if}
-                {/each}
-            </tr>
-        </thead>
-        <tbody>
-            {#each sortedPeople as [idx, visible], rank}
-                {#if visible}
+        <h2>Primerjava ljudi</h2>
+        <div class="chart">
+            <Chart config={{type: 'line', data: {labels: selectedExercises.filter(([_, v])=>v).map(([v]) => v), datasets: selectedPeople.filter(([_, v]) => v).map(([i]) => ({label: data[i].name, data: data[i].vals.map((v, j) => normalizers[j](v)).filter((_, i) => selectedExercises[i][1])}))}, options: {plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: false}}}}} />
+        </div>
+    {/if}
+    {#if tab === 1 || tab === 2}
+        <table>
+            <thead>
                 <tr>
-                    <td>{rank+1}.</td>
-                    <td>{data[idx].name}</td>
-                    <td>
-                        {data[idx].groups.join(', ')}
-                        <span class="group-colors">
-                            {#each findColors(data[idx].groups, groups) as color}
-                            <span style="background: {color};"></span>
-                            {/each}
-                        </span>
-                    </td>
-                    <td>{formatNormalizedScore(score(data[idx].vals, selectedExercises.map(([_, v]) => v), normalizers))}</td>
-                    {#each selectedExercises as [_, visible], i}
+                    <th>#</th>
+                    <th>Ime</th>
+                    <th>Skupina</th>
+                    <th>Skupna ocena</th>
+                    {#each selectedExercises as [name, visible], i}
                         {#if visible}
-                        <td>
-                            {#if data[idx].vals[i] !== null}
-                                {data[idx].vals[i]} ({formatNormalizedScore(normalizers[i](data[idx].vals[i]))})
-                            {:else}
-                                /
-                            {/if}
-                        </td>
+                        <th>{name}</th>
                         {/if}
                     {/each}
                 </tr>
-                {/if}
-            {/each}
-        </tbody>
-    </table>
-{/if}
-
-<h2>TODO</h2>
-<ul>
-    <li>FEAT: Poimenovanje osi na vseh grafih</li>
-    <li>FEAT: Zapomni si nastavitve in zavihek</li>
-    <li>FEAT: Lepše oblikuj nastavitve</li>
-    <li>BUG: Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
-    <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
-</ul>
+            </thead>
+            <tbody>
+                {#each sortedPeople as [idx, visible], rank}
+                    {#if visible}
+                    <tr>
+                        <td>{rank+1}.</td>
+                        <td>{data[idx].name}</td>
+                        <td>
+                            {data[idx].groups.join(', ')}
+                            <span class="group-colors">
+                                {#each findColors(data[idx].groups, groups) as color}
+                                <span style="background: {color};"></span>
+                                {/each}
+                            </span>
+                        </td>
+                        <td>{formatNormalizedScore(score(data[idx].vals, selectedExercises.map(([_, v]) => v), normalizers))}</td>
+                        {#each selectedExercises as [_, visible], i}
+                            {#if visible}
+                            <td>
+                                {#if data[idx].vals[i] !== null}
+                                    {data[idx].vals[i]} ({formatNormalizedScore(normalizers[i](data[idx].vals[i]))})
+                                {:else}
+                                    /
+                                {/if}
+                            </td>
+                            {/if}
+                        {/each}
+                    </tr>
+                    {/if}
+                {/each}
+            </tbody>
+        </table>
+    {/if}
+    <h2>TODO</h2>
+    <ul>
+        <li>FEAT: Poimenovanje osi na vseh grafih</li>
+        <li>FEAT: Zapomni si nastavitve in zavihek</li>
+        <li>FEAT: Lepše oblikuj nastavitve</li>
+        <li>BUG: Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
+        <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
+    </ul>
+</div>
 <style>
+    :global(body) {
+        margin: 0
+    }
+    h1 {
+        background-color: #1c93d1;
+        margin: 0;
+        padding: 0.5em;
+        color: white;
+        text-align: center;
+    }
+    .wrapper {
+        max-width: 1200px;
+        margin: auto;
+    }
+    @media only screen and (min-width: 600px) {
+        .wrapper {
+            padding-left: 2em;
+            padding-right: 2em;
+        }
+    }
     .tabs {
         display: flex;
         flex-direction: row;
-        justify-content: space-around;
+        justify-content: center;
     }
     .tabs button {
         padding: 0.5em;
         width: 100%;
+        max-width: 200pt;
         margin: 1em 0;
         background: none;
         border: none;
         font-size: large;
     }
     .tabs button.active {
-        border-bottom: green 3px solid;
+        border-bottom: #6cac44 3px solid;
     }
     .check-group {
         display: flex;
         flex-direction: column;
         flex-wrap: wrap;
+        margin-bottom: 1em;
     }
     .group-colors {
         display: flex;
