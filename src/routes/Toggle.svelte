@@ -1,12 +1,14 @@
 <script lang="ts">
+    import Hint from "./Hint.svelte"
     export let value: boolean;
     export let labels: [string, string];
+    export let hint: string;
 </script>
 <label>
     {labels[0]}
     <input type="checkbox" bind:checked={value} />
     <span class="toggle"></span>
-    {labels[1]}
+    {labels[1]}<Hint message={hint} />
 </label>
 <style>
     input {

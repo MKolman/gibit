@@ -3,6 +3,7 @@
     import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, bojanScoreNormalizers, makeCandles } from "$lib/stat"
     import Chart from './Chart.svelte'
     import Picker from './Picker.svelte'
+    import Hint from './Hint.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
 	import { page } from "$app/stores";
 	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups, type GroupBreakdown, getGroupColors } from "$lib/groups";
@@ -126,27 +127,27 @@
     <div class="check-group">
         <Picker allTxt="Vse vaje" bind:values={selectedExercises} />
     </div>
-    <Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']} />
+    <Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']}  hint="Percentili vam povedo kolikšen procent ostalih igralcev je slabših od vas. 'Bojan' score je natančno izdelana absolutna formula, ki ti iz rezultatov testa poda oceno tvojih sposobnosti neodvisno od ostalih igralcev."/>
     {#if !useBojanScore}
         <br>
         <p>
             Računaj percentile glede na:<br>
-            <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} />
+            <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} hint="Ali naj se percentili računajo glede na vse igralce, ali samo tiste, ki so v skupinah, ki so izbrane spodaj."/>
         </p>
     {/if}
     <br>
-    <Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} />
+    <Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} hint="Stopnje so le štiri - od osnovne do nadaljevalne. Za bolj natančen pregled pa lahko primerjate posamične vadbene skupine točno po stopnji, dnevu vadbe in lokaciji."/>
     <div class="check-group">
         <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
     </div>
     {#if tab === 0}
-        <h2>Skupna ocena</h2>
+        <h2>Skupna ocena<Hint message="Absolutna ocena, kot jo določi 'Bojan' score. Ali relativna ocena merjena v standarnih odmikih od povprečja."/></h2>
         <div class="chart">
             <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
         </div>
         {#each selectedExercises as [name, visible], i}
             {#if visible}
-            <h2>{originalExercises[i]}</h2>
+            <h2>{name}<Hint message={originalExercises[i]}/></h2>
             <div class="chart">
                 <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
             </div>
@@ -154,13 +155,13 @@
         {/each}
     {/if}
     {#if tab === 3}
-        <h2>Skupna ocena</h2>
+        <h2>Skupna ocena<Hint message="skupaj"/></h2>
         <div class="chart">
             <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
         </div>
         {#each selectedExercises as [name, visible], i}
             {#if visible}
-            <h2>{originalExercises[i]}</h2>
+            <h2>{name}<Hint message={originalExercises[i]}/></h2>
             <div class="chart">
                 <Chart config={{type: 'candlestick', data: candles[i], options: makeCandleOptions({scales: {y:{title:{text:name}}}})}} />
             </div>
