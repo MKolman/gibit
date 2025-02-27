@@ -8,7 +8,7 @@
     {labels[0]}
     <input type="checkbox" bind:checked={value} />
     <span class="toggle"></span>
-    {labels[1]}<Hint message={hint} />
+    {labels[1]} <Hint message={hint} />
 </label>
 <style>
     input {

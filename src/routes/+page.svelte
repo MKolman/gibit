@@ -12,6 +12,17 @@
 	import { fetchGibitEncData } from "$lib/fetchData";
 
     const exercises: string[] = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
+    const exHints: string[] = [
+        "Število zaporednih spodnjih odbojev, ki jih lahko narediš v 30 sekundah.",
+        "Število zaporednih spodnjih odbojev z vmesnim dotikom tal, ki jih lahko narediš v 60 sekundah.",
+        "Število zaporednih zgornjih odbojev, ki jih lahko narediš sede v 30 sekundah.",
+        "Število zaporednih zgornjih odbojev z vmesnim ploskom, ki jih lahko narediš v 30 sekundah.",
+        "Število zaporednih izmenjujočih zgornjih in spodnjih odbojev, ki jih lahko narediš v 30 sekundah.",
+        "Število spodnjih servisov, ki jih po paraleli zadaneš v zadnje 4 metre nasprotnega igrišča v desetih poizkusih.",
+        "Število zgornjih servisov, ki jih po paraleli zadaneš v zadnje 4 metre nasprotnega igrišča v desetih poizkusih.",
+        "Število napadalnih udarcev za 3m črto po lastnem izmetu, ki jih po paraleli zadaneš v 3m x 3m območje v oddaljenem kotu nasprotnega igrišča v desetih poizkusih.",
+        "S prsti dosežena višina v centimetrih pri skoku v višino iz mesta.",
+    ]
     let originalExercises: string[] = exercises;
     let selectedExercises: [string, boolean][];
     $: selectedExercises = exercises.map(v => [v, true]);
@@ -116,7 +127,7 @@
     }
 
 </script>
-<h1><img src="/static/white_rabbit.png" alt="gibit logo">GIBIT ODBOJKARSKI KARTON</h1>
+<h1><img src="/white_rabbit.png" alt="gibit logo">GIBIT ODBOJKARSKI KARTON</h1>
 <div class="tabs">
     <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
     <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
@@ -141,13 +152,13 @@
         <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
     </div>
     {#if tab === 0}
-        <h2>Skupna ocena<Hint message="Absolutna ocena, kot jo določi 'Bojan' score. Ali relativna ocena merjena v standarnih odmikih od povprečja."/></h2>
+        <h2>Skupna ocena <Hint message="Absolutna ocena, kot jo določi 'Bojan' score. Ali relativna ocena merjena v standarnih odmikih od povprečja."/></h2>
         <div class="chart">
             <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
         </div>
         {#each selectedExercises as [name, visible], i}
             {#if visible}
-            <h2>{name}<Hint message={originalExercises[i]}/></h2>
+            <h2>{name} <Hint message={exHints[i]}/></h2>
             <div class="chart">
                 <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
             </div>
@@ -155,13 +166,13 @@
         {/each}
     {/if}
     {#if tab === 3}
-        <h2>Skupna ocena<Hint message="skupaj"/></h2>
+        <h2>Skupna ocena <Hint message="skupaj"/></h2>
         <div class="chart">
             <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
         </div>
         {#each selectedExercises as [name, visible], i}
             {#if visible}
-            <h2>{name}<Hint message={originalExercises[i]}/></h2>
+            <h2>{name} <Hint message={exHints[i]}/></h2>
             <div class="chart">
                 <Chart config={{type: 'candlestick', data: candles[i], options: makeCandleOptions({scales: {y:{title:{text:name}}}})}} />
             </div>
@@ -233,7 +244,6 @@
         <li>FEAT: Poimenovanje osi na vseh grafih</li>
         <li>FEAT: Zapomni si nastavitve in zavihek</li>
         <li>FEAT: Lepše oblikuj nastavitve</li>
-        <li>BUG: Grafi spreminjajo velikost, ko spreminjas nastavitve</li>
         <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
     </ul>
 </div>

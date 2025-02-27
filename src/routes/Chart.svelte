@@ -23,4 +23,11 @@
 	}
 </script>
 
-<canvas use:handleChart={config} style="width: 100px; height: 100px;"></canvas>
+<canvas use:handleChart={config}></canvas>
+
+<style>
+	canvas {
+		width: 100%;
+		min-height: 500px;
+	}
+</style>
