@@ -8,6 +8,7 @@
 	import { page } from "$app/stores";
 	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups, type GroupBreakdown, getGroupColors } from "$lib/groups";
 	import Toggle from "./Toggle.svelte";
+    import * as persist from "$lib/persist"
 	import { mergeDeep } from "$lib/merge";
 	import { fetchGibitEncData } from "$lib/fetchData";
 
@@ -24,17 +25,19 @@
         "S prsti dosežena višina v centimetrih pri skoku v višino iz mesta.",
     ]
     let originalExercises: string[] = exercises;
-    let selectedExercises: [string, boolean][];
-    $: selectedExercises = exercises.map(v => [v, true]);
+    let selectedExercises: [string, boolean][] = exercises.map(v => [v, true]);
     let data: Data[] = [];
-    onMount(() => {
-        fetchGibitEncData($page.url.searchParams).then(v => {
-            if (v) {
-                ({exercises: originalExercises, data} = v);
-            }
-        })
-    });
+
+    // Persisted settings
     let useLevelsAsGroups = true;
+    let tab = 0;
+    let useBojanScore = true;
+    let useRelativeScore = false;
+    $: persist.useLevelsAsGroups.set($page.url.searchParams, useLevelsAsGroups)
+    $: persist.tab.set($page.url.searchParams, tab)
+    $: persist.useBojanScore.set($page.url.searchParams, useBojanScore)
+    $: persist.useRelativeScore.set($page.url.searchParams, useRelativeScore)
+
     let groups: [string, boolean][]|[GroupBreakdown, boolean][];
     $: groups = useLevelsAsGroups?levels.map(v => [v, true]):extractGroups(data).map(v => [v, true]);
     $: selectedGroups = groups.filter(([_, v]) => v).map(([v]) => v) as string[] | GroupBreakdown[];
@@ -49,9 +52,18 @@
     $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
-    let tab = 0;
-    let useBojanScore = true;
-    let useRelativeScore = false;
+    onMount(() => {
+        const sp = $page.url.searchParams
+        fetchGibitEncData(sp).then(v => {
+            if (v) {
+                ({exercises: originalExercises, data} = v);
+            }
+        })
+        tab = persist.tab.get(sp)
+        useBojanScore = persist.useBojanScore.get(sp)
+        useRelativeScore = persist.useRelativeScore.get(sp)
+        useLevelsAsGroups = persist.useLevelsAsGroups.get(sp)
+    });
     $: {
         if (tab === 2) {
             sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet, useLevelsAsGroups)]);
@@ -241,8 +253,6 @@
     {/if}
     <h2>TODO</h2>
     <ul>
-        <li>FEAT: Poimenovanje osi na vseh grafih</li>
-        <li>FEAT: Zapomni si nastavitve in zavihek</li>
         <li>FEAT: Lepše oblikuj nastavitve</li>
         <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
     </ul>
