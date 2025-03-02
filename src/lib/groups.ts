@@ -1,7 +1,7 @@
 import pattern from "patternomaly";
 
 export const levels = ["osnovna", "rekreativna 1", "rekreativna 2", "nadaljevalna"]
-export const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
+export const colors = ["#6cac44", "#1c93d1", "#961cd1", "#184962", "#009688", "#5F52D1", "#513594", '#ff7f0e', '#d62728', '#8c564b', '#7f7f7f', '#bcbd22', '#17becf'];
 const levelColors: Map<string, string> = new Map([
     ["osnovna", "#6cac44"],
     ["osnovna / rekreativna 1", "#009688"],

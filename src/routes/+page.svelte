@@ -141,10 +141,10 @@
 </script>
 <h1><img src="/white_rabbit.png" alt="gibit logo">GIBIT ODBOJKARSKI KARTON</h1>
 <div class="tabs">
-    <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
-    <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
-    <button class:active={tab === 1} on:click={() => tab = 1}>Izbrani</button>
-    <button class:active={tab === 2} on:click={() => tab = 2}>Tabela</button>
+    <button class:active={tab === 0} on:click={() => tab = 0}><img src="/posamezniki.png" alt="Posamezniki" class="pict"> Posamezniki</button>
+    <button class:active={tab === 3} on:click={() => tab = 3}><img src="/skupine.png" alt="Skupine" class="pict">Skupine</button>
+    <button class:active={tab === 1} on:click={() => tab = 1}><img src="/izbrani.png" alt="Izbrani" class="pict">Izbrani</button>
+    <button class:active={tab === 2} on:click={() => tab = 2}><img src="/tabela.png" alt="Tabela" class="pict">Tabela</button>
 </div>
 <div class="wrapper">
     <div class="check-group">
@@ -204,6 +204,8 @@
             <Chart config={{type: 'line', data: {labels: selectedExercises.filter(([_, v])=>v).map(([v]) => v), datasets: selectedPeople.filter(([_, v]) => v).map(([i]) => ({label: data[i].name, data: data[i].vals.map((v, j) => normalizers[j](v)).filter((_, i) => selectedExercises[i][1])}))}, options: {plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: false}}}}} />
         </div>
     {/if}
+</div>
+<div class="table-wrapper">
     {#if tab === 1 || tab === 2}
         <table>
             <thead>
@@ -254,6 +256,7 @@
     <h2>TODO</h2>
     <ul>
         <li>FEAT: Lepše oblikuj nastavitve</li>
+        <li>FEAT: Spremeni velikost slik v tabih.</li>
         <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
     </ul>
 </div>
@@ -271,14 +274,24 @@
         color: white;
         text-align: center;
     }
+    h2 {
+        margin-top: 1.5em;
+    }
     .wrapper {
-        max-width: 1200px;
+        max-width: 1050px;
         margin: auto;
+    }
+    .table-wrapper {
+        text-align: center;
     }
     @media only screen and (min-width: 600px) {
         .wrapper {
             padding-left: 2em;
             padding-right: 2em;
+        }
+        .table-wrapper {
+            padding-left: 1em;
+            padding-right: 1em;
         }
     }
     .tabs {
@@ -298,17 +311,22 @@
     .tabs button.active {
         border-bottom: #6cac44 3px solid;
     }
+    .pict {
+        height: 1em;
+        margin-right: 0.5em;
+    }
     .check-group {
         display: flex;
         flex-direction: column;
         flex-wrap: wrap;
         margin-bottom: 1em;
+        margin-top: 1em;
     }
     .group-colors {
         display: flex;
     }
     .group-colors span {
-        /* border: 1px solid black; */
+        border: 1px solid black;
         height: 1em;
         display: inline-block;
         flex: 1;
@@ -320,13 +338,21 @@
         font-family: sans-serif;
     }
     table {
+        margin-top: 3em;
         max-width: 100%;
-        display: block;
+        display: inline-block;
         overflow-x: auto;
+    }
+    table thead th {
+        padding: 0.8em;
+        font-weight: normal;
     }
     td:nth-child(2), th:nth-child(2) {
         position: sticky;
         left: 0;
+    }
+    td {
+        text-align: left;
     }
     thead, thead th:nth-child(2) {
         background: #1c93d1;

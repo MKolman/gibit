@@ -122,7 +122,7 @@ export function makeCandles(data: Data[], groups: string[]|GroupBreakdown[], col
             footer: dataset.map(v => `Povp.: ${fmt(v.mean)}\nMin: ${fmt(v.min)}\nMax: ${fmt(v.max)}` + (isPct?'':`\nStd: ${v.std.toFixed(2)}`)),
             backgroundColors,
             backgroundColor: backgroundColors.map(({up}) => up),
-            borderColors: { up: "black"},
+            borderColors: backgroundColors,
         }]}
     });
 }

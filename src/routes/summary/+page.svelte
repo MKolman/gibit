@@ -9,12 +9,17 @@
     const enabled: boolean[] = exercises.map(_ => true)
     let data: Data[] = [];
     let dataPerLevel: Data[][];
-    $: dataPerLevel = levels.map(lvl => data.filter(row => isGroupSelected(row.groups, new Set([lvl]), true)))
-    $: normalizers = exercises.map((_, i) => normalizer(data.map(row => row.vals[i])))
+    let realPct: boolean = true;
+    $: dataPerLevel = [data, ...levels.map(lvl => data.filter(row => isGroupSelected(row.groups, new Set([lvl]), true)))]
+    $: dataPerLevelPerExercise = dataPerLevel.map(data => exercises.map((_, i) => data.map(row => row.vals[i])))
+    $: bojanScoreDataPerLevel = dataPerLevel.map(data => data.map(row => score(row.vals, enabled, bojanScoreNormalizers)))
     $: normalizersPerLevel = dataPerLevel.map(data => exercises.map((_, i) => normalizer(data.map(row => row.vals[i]))))
-    $: bojanRelativeNormalizer = normalizer(data.map(row => score(row.vals, enabled, bojanScoreNormalizers)))
     $: bojanRelativeNormalizerPerLevels = dataPerLevel.map(data => normalizer(data.map(row => score(row.vals, enabled, bojanScoreNormalizers))))
 
+    function getRealPct(data: number[], val: number): string {
+        let better = data.filter(v => v < val).length;
+        return `${(100*better/data.length).toFixed(2)}%`
+    }
     onMount(() => {
         const sp = $page.url.searchParams
         fetchGibitEncData(sp).then(v => {
@@ -46,19 +51,29 @@
         <tr>
             <td>Skupni "Bojan" score</td>
             <td>{score(row.vals, enabled, bojanScoreNormalizers).toFixed(2)}</td>
-            <td>{scoreToPctTxt(bojanRelativeNormalizer(score(row.vals, enabled, bojanScoreNormalizers)))}</td>
-            {#each bojanRelativeNormalizerPerLevels as norm}
-                <td>{scoreToPctTxt(norm(score(row.vals, enabled, bojanScoreNormalizers)))}</td>
-            {/each}
+            {#if realPct }
+                {#each bojanScoreDataPerLevel as data}
+                    <td>{getRealPct(data, score(row.vals, enabled, bojanScoreNormalizers))}</td>
+                {/each}
+            {:else}
+                {#each bojanRelativeNormalizerPerLevels as norm}
+                    <td>{scoreToPctTxt(norm(score(row.vals, enabled, bojanScoreNormalizers)))}</td>
+                {/each}
+            {/if}
         </tr>
         {#each row.vals as val, i}
             <tr>
                 <td>{exercises[i]}</td>
                 <td>{val}</td>
-                <td>{scoreToPctTxt(normalizers[i](val))}</td>
-                {#each normalizersPerLevel as norm}
-                    <td>{scoreToPctTxt(norm[i](val))}</td>
-                {/each}
+                {#if realPct }
+                    {#each dataPerLevelPerExercise as data}
+                        <td>{getRealPct(data[i], val)}</td>
+                    {/each}
+                {:else}
+                    {#each normalizersPerLevel as norm}
+                        <td>{scoreToPctTxt(norm[i](val))}</td>
+                    {/each}
+                {/if}
             </tr>
         {/each}
     </tbody>
