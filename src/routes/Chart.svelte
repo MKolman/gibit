@@ -27,7 +27,7 @@
 
 <style>
 	canvas {
-		width: 100%;
+		width: 100%!important;
 		min-height: 500px;
 	}
 </style>

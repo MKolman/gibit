@@ -81,7 +81,7 @@ const nameShorteners: Map<string, string> = new Map([
     ["SUAŠ", "SUAŠ"],
     ["Gimnazija Šiška", "Šiš"],
     ["OŠ Vič", "Vič"],
-    ["OŠ Riharda Jakopiča", "RH"],
+    ["OŠ Riharda Jakopiča", "RJ"],
     ["nadaljevalna", "N"],
     ["osnovna / rekreativna 1", "OR1"],
     ["rekreativna 1", "R1"],

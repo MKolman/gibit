@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-    import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, bojanScoreNormalizers, makeCandles } from "$lib/stat"
+    import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, odBitScoreNormalizers, makeCandles } from "$lib/stat"
     import Chart from './Chart.svelte'
     import Picker from './Picker.svelte'
     import Hint from './Hint.svelte'
 	import PeopleSearch from "./PeopleSearch.svelte";
 	import { page } from "$app/stores";
-	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups, type GroupBreakdown, getGroupColors } from "$lib/groups";
+	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups, type GroupBreakdown, getGroupColors, parseGroups } from "$lib/groups";
 	import Toggle from "./Toggle.svelte";
+	import Footer from "./Footer.svelte";
     import * as persist from "$lib/persist"
 	import { mergeDeep } from "$lib/merge";
 	import { fetchGibitEncData } from "$lib/fetchData";
@@ -31,11 +32,11 @@
     // Persisted settings
     let useLevelsAsGroups = true;
     let tab = 0;
-    let useBojanScore = true;
+    let useOdBitScore = true;
     let useRelativeScore = false;
     $: persist.useLevelsAsGroups.set($page.url.searchParams, useLevelsAsGroups)
     $: persist.tab.set($page.url.searchParams, tab)
-    $: persist.useBojanScore.set($page.url.searchParams, useBojanScore)
+    $: persist.useOdBitScore.set($page.url.searchParams, useOdBitScore)
     $: persist.useRelativeScore.set($page.url.searchParams, useRelativeScore)
 
     let groups: [string, boolean][]|[GroupBreakdown, boolean][];
@@ -46,10 +47,10 @@
     $: selectedGroupsSet = new Set(selectedGroups.map(v => ((v as GroupBreakdown).name) || v as string));
     $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
     $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
-    $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
+    $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useOdBitScore);
     $: candles = makeCandles(filteredData, selectedGroups, selectedColors);
-    $: totalCandles = makeCandles(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useBojanScore);
-    $: normalizers = useBojanScore?bojanScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
+    $: totalCandles = makeCandles(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useOdBitScore);
+    $: normalizers = useOdBitScore?odBitScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
     let selectedPeople: [number, boolean][] = [];
     let sortedPeople: [number, boolean][] = [];
     onMount(() => {
@@ -60,17 +61,61 @@
             }
         })
         tab = persist.tab.get(sp)
-        useBojanScore = persist.useBojanScore.get(sp)
+        useOdBitScore = persist.useOdBitScore.get(sp)
         useRelativeScore = persist.useRelativeScore.get(sp)
         useLevelsAsGroups = persist.useLevelsAsGroups.get(sp)
     });
+    type Column = number;
+    const nameColumn: Column = -1,
+          groupsColumn: Column = -2,
+          totalColumn: Column = -3;
+    let sortColumn: Column = totalColumn;
+    let sortAsc = false;
+    function setTableSortColumn(column: Column) {
+        if (sortColumn === column) {
+            sortAsc = !sortAsc
+        } else {
+            sortColumn = column
+            sortAsc = column === nameColumn
+        }
+    }
+    function getMaxGroupIdx(groups: string[]): number {
+        const lvls = [
+            '- nadaljevalna (',
+            'rekreativna 2 / nadaljevalna',
+            'rekreativna 2',
+            'rekreativna 1 /2',
+            '- rekreativna 1',
+            'osnovna / rekreativna 1',
+            'osnovna',
+        ]
+        let score = 0
+        for (let i = 0; i < lvls.length; i++) {
+            if (groups.some(g => g.includes(lvls[i])))
+                return lvls.length - i;
+        }
+        return score
+    }
     $: {
         if (tab === 2) {
             sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet, useLevelsAsGroups)]);
         } else {
             sortedPeople = [...selectedPeople]
         }
-        sortedPeople.sort((i, j) => data[j[0]].vals.reduce((a, b, i) => a + (selectedExercises[i][1]?normalizers[i](b):0), 0) - data[i[0]].vals.reduce((a, b, i) => a + (selectedExercises[i][1]?normalizers[i](b):0), 0));
+        const mul = sortAsc?-1:1;
+        switch (sortColumn) {
+            case totalColumn:
+                sortedPeople.sort((i, j) => mul*data[j[0]].vals.reduce((a, b, i) => a + (selectedExercises[i][1]?normalizers[i](b):0), 0) - mul*data[i[0]].vals.reduce((a, b, i) => a + (selectedExercises[i][1]?normalizers[i](b):0), 0));
+                break
+            case nameColumn:
+                sortedPeople.sort(([i], [j]) => data[i].name < data[j].name?mul:-mul)
+                break
+            case groupsColumn:
+                sortedPeople.sort(([i], [j]) => mul*getMaxGroupIdx(data[i].groups) - mul*getMaxGroupIdx(data[j].groups))
+                break
+            default:
+                sortedPeople.sort(([i], [j]) => mul*data[j].vals[sortColumn] - mul*data[i].vals[sortColumn])
+        }
     }
 
     function footer(tooltipItems: any) {
@@ -91,13 +136,18 @@
         ), false) as string[]
     }
     function formatNormalizedScore(score: number) {
-        if (useBojanScore) {
+        if (useOdBitScore) {
             return score.toFixed(2);
         } else {
             return scoreToPctTxt(score);
         }
     }
     const defaultChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            duration: 0
+        },
         plugins: {
             legend: {
                 display:false
@@ -141,32 +191,33 @@
 </script>
 <h1><img src="/white_rabbit.png" alt="gibit logo">GIBIT ODBOJKARSKI KARTON</h1>
 <div class="tabs">
-    <button class:active={tab === 0} on:click={() => tab = 0}><img src="/posamezniki.png" alt="Posamezniki" class="pict"> Posamezniki</button>
-    <button class:active={tab === 3} on:click={() => tab = 3}><img src="/skupine.png" alt="Skupine" class="pict">Skupine</button>
-    <button class:active={tab === 1} on:click={() => tab = 1}><img src="/izbrani.png" alt="Izbrani" class="pict">Izbrani</button>
-    <button class:active={tab === 2} on:click={() => tab = 2}><img src="/tabela.png" alt="Tabela" class="pict">Tabela</button>
+    <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
+    <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
+    <button class:active={tab === 1} on:click={() => tab = 1}>Izbrani</button>
+    <button class:active={tab === 2} on:click={() => tab = 2}>Tabela</button>
 </div>
 <div class="wrapper">
     <div class="check-group">
-        <Picker allTxt="Vse vaje" bind:values={selectedExercises} />
+        <Picker allTxt="Vse vaje" hint="Za izračun skupne ocene se upoštevajo samo vaje, ki so izbrane. Tako si zlahka odgovorite na vprašanje kako bi vam šlo, če ne bi upoštevali npr. spodnjega servisa ali skoka v višino." bind:values={selectedExercises} />
     </div>
-    <Toggle bind:value={useBojanScore} labels={["Percentili", '"Bojan" score']}  hint="Percentili vam povedo kolikšen procent ostalih igralcev je slabših od vas. 'Bojan' score je natančno izdelana absolutna formula, ki ti iz rezultatov testa poda oceno tvojih sposobnosti neodvisno od ostalih igralcev."/>
-    {#if !useBojanScore}
-        <br>
+    <Toggle bind:value={useOdBitScore} labels={["Percentili", 'OdBita ocena']}  hint="Percentili vam povedo kolikšen procent ostalih igralcev je slabših od vas. OdBita ocena je z natančno izdelano formulo izračunana iz rezultatov testa."/>
+    {#if !useOdBitScore}
         <p>
             Računaj percentile glede na:<br>
             <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} hint="Ali naj se percentili računajo glede na vse igralce, ali samo tiste, ki so v skupinah, ki so izbrane spodaj."/>
         </p>
+    {:else}
+        <br>
+        <br>
     {/if}
-    <br>
     <Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} hint="Stopnje so le štiri - od osnovne do nadaljevalne. Za bolj natančen pregled pa lahko primerjate posamične vadbene skupine točno po stopnji, dnevu vadbe in lokaciji."/>
     <div class="check-group">
         <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
     </div>
     {#if tab === 0}
-        <h2>Skupna ocena <Hint message="Absolutna ocena, kot jo določi 'Bojan' score. Ali relativna ocena merjena v standarnih odmikih od povprečja."/></h2>
+        <h2>Skupna ocena <Hint message="Absolutna ocena, kot jo določi OdBita ocena. Ali relativna ocena merjena v standarnih odmikih od povprečja."/></h2>
         <div class="chart">
-            <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
+            <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useOdBitScore?'OdBita ocena':'Odmik od povprečja [σ]'}}}})}} />
         </div>
         {#each selectedExercises as [name, visible], i}
             {#if visible}
@@ -180,7 +231,7 @@
     {#if tab === 3}
         <h2>Skupna ocena <Hint message="skupaj"/></h2>
         <div class="chart">
-            <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useBojanScore?'"Bojan" score':'Odmik od povprečja [σ]'}}}})}} />
+            <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useOdBitScore?'OdBita ocena':'Odmik od povprečja [σ]'}}}})}} />
         </div>
         {#each selectedExercises as [name, visible], i}
             {#if visible}
@@ -201,7 +252,7 @@
 
         <h2>Primerjava ljudi</h2>
         <div class="chart">
-            <Chart config={{type: 'line', data: {labels: selectedExercises.filter(([_, v])=>v).map(([v]) => v), datasets: selectedPeople.filter(([_, v]) => v).map(([i]) => ({label: data[i].name, data: data[i].vals.map((v, j) => normalizers[j](v)).filter((_, i) => selectedExercises[i][1])}))}, options: {plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: false}}}}} />
+            <Chart config={{type: 'line', data: {labels: selectedExercises.filter(([_, v])=>v).map(([v]) => v), datasets: selectedPeople.filter(([_, v]) => v).map(([i], idx) => ({label: data[i].name, borderColor: colors[idx%colors.length], data: data[i].vals.map((v, j) => normalizers[j](v)).filter((_, i) => selectedExercises[i][1])}))}, options: {responsive: true, maintainAspectRatio: false, animation: {duration: 0}, plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: false}}}}} />
         </div>
     {/if}
 </div>
@@ -211,27 +262,27 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Ime</th>
-                    <th>Skupina</th>
-                    <th>Skupna ocena</th>
+                    <th on:click={() => setTableSortColumn(nameColumn)} class="{sortColumn === nameColumn && "sorted"} {sortAsc && "asc"}">Ime</th>
+                    <th on:click={() => setTableSortColumn(groupsColumn)} class="{sortColumn === groupsColumn && "sorted"} {sortAsc && "asc"}">Skupina</th>
+                    <th on:click={() => setTableSortColumn(totalColumn)} class="{sortColumn === totalColumn && "sorted"} {sortAsc && "asc"}">Skupna ocena</th>
                     {#each selectedExercises as [name, visible], i}
                         {#if visible}
-                        <th>{name}</th>
+                        <th on:click={() => setTableSortColumn(i)} class="{sortColumn === i && "sorted"} {sortAsc && "asc"}">{name}</th>
                         {/if}
                     {/each}
                 </tr>
             </thead>
             <tbody>
-                {#each sortedPeople as [idx, visible], rank}
+                {#each sortedPeople as [idx, visible]}
                     {#if visible}
+                    {@const shortGroups = parseGroups(data[idx].groups)}
                     <tr>
-                        <td>{rank+1}.</td>
+                        <td>.</td>
                         <td>{data[idx].name}</td>
                         <td>
-                            {data[idx].groups.join(', ')}
                             <span class="group-colors">
-                                {#each findColors(data[idx].groups, groups) as color}
-                                <span style="background: {color};"></span>
+                                {#each findColors(data[idx].groups, groups) as color, i}
+                                <span style="background: {color};" title={data[idx].groups[i]}>{shortGroups[i].shortName}</span>
                                 {/each}
                             </span>
                         </td>
@@ -253,12 +304,7 @@
             </tbody>
         </table>
     {/if}
-    <h2>TODO</h2>
-    <ul>
-        <li>FEAT: Lepše oblikuj nastavitve</li>
-        <li>FEAT: Spremeni velikost slik v tabih.</li>
-        <li>BUG: Seznam imen na grafu se konča na dnu grafa in lahko odreže spodnja imena</li>
-    </ul>
+    <Footer />
 </div>
 <style>
     :global(body) {
@@ -311,10 +357,6 @@
     .tabs button.active {
         border-bottom: #6cac44 3px solid;
     }
-    .pict {
-        height: 1em;
-        margin-right: 0.5em;
-    }
     .check-group {
         display: flex;
         flex-direction: column;
@@ -327,9 +369,10 @@
     }
     .group-colors span {
         border: 1px solid black;
-        height: 1em;
+        color: white;
         display: inline-block;
         flex: 1;
+        text-align: center;
     }
     .chart {
         max-height: 500px;
@@ -346,10 +389,33 @@
     table thead th {
         padding: 0.8em;
         font-weight: normal;
+        position: relative;
+        cursor: pointer;
+    }
+    table thead th.sorted::after {
+        content: '▼';
+        position: absolute;
+        right: 0;
+        height: 1em;
+        line-height: 1em;
+        top: calc(50% - 0.5em)
+
+    }
+    table thead th.sorted.asc::after {
+        content: '▲';
+
+    }
+    tbody tr {
+        counter-increment: rowNumber;
+    }
+    tbody tr td:first-child::before {
+        content: counter(rowNumber);
+        min-width: 1em;
     }
     td:nth-child(2), th:nth-child(2) {
         position: sticky;
         left: 0;
+        z-index: 10;
     }
     td {
         text-align: left;

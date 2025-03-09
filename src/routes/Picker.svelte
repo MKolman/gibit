@@ -1,9 +1,11 @@
 <script lang="ts">
+    import Hint from './Hint.svelte'
     import { type GroupBreakdown } from "$lib/groups";
 	import { onMount, tick } from "svelte";
     export let values: [string|number, boolean][] | [GroupBreakdown, boolean][];
     export let sections: boolean = false;
     export let allTxt = "Vsi";
+    export let hint: string = "";
     export let alt = 0;
     export let labels: string[] = [];
     export let colors: string[]|null = null;
@@ -46,7 +48,8 @@
 <canvas hidden bind:this={canvas} width=300 height=300></canvas>
 {#if !sections}
     <div class="row">
-        <label class:alt-1={alt === 1} class:alt-2={alt === 2}><input type="checkbox" checked="{values.every(([_, v]) => v)}" on:change={(ev) => {values.forEach(v => (v[1] = (ev.target as any).checked)); values = values}}>{allTxt}</label>
+        <label class:alt-1={alt === 1} class:alt-2={alt === 2}><input type="checkbox" checked="{values.every(([_, v]) => v)}" on:change={(ev) => {values.forEach(v => (v[1] = (ev.target as any).checked)); values = values}}>{allTxt}{#if hint.length > 0}<Hint message={hint}/>{/if}</label>
+        
         {#each values as _, i}
             <label class:alt-1={alt === 1} class:alt-2={alt === 2} style="background: {colors === null?'': colors[i%colors.length]}"><input type="checkbox" bind:checked={values[i][1]}/>{realLabels[i]}</label>
         {/each}
@@ -80,12 +83,19 @@
         margin: 0.1em;
         opacity: 0.5;
         text-align: center;
+        position: relative;
     }
-    label span {
+    label > span {
         background-color: rgba(0, 0, 0, 60%);
         display: inline-block;
         border-radius: 4px;
         padding: 0.1em;
+    }
+    label > :global(button) {
+        position: absolute;
+        right: -0.1em;
+        top: -0.2em;
+        outline: 1px white solid;
     }
     label.alt-1 {
         background: #6cac44;

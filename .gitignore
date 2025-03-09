@@ -22,3 +22,4 @@ vite.config.ts.timestamp-*
 
 # Private data
 data
+mailerlite/animal_mappings_with_mail.csv

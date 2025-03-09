@@ -42,6 +42,6 @@ class UrlGetterSetter<T> {
     }
 }
 export const tab = new UrlGetterSetter<number>("tab", 0)
-export const useBojanScore = new UrlGetterSetter<boolean>("bojanScore", true)
+export const useOdBitScore = new UrlGetterSetter<boolean>("OdBitScore", true)
 export const useRelativeScore = new UrlGetterSetter<boolean>("relativeScore", false)
 export const useLevelsAsGroups = new UrlGetterSetter<boolean>("levels", true)

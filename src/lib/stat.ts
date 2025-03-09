@@ -19,7 +19,7 @@ function identity(val: number): number {
     return val;
 }
 
-export const bojanScoreNormalizers = [
+export const odBitScoreNormalizers = [
     (val: number) => val/5,
     (val: number) => val/3,
     (val: number) => val/8,
@@ -150,11 +150,38 @@ export function unify(data: Data[], enabled: boolean[], normalizers: ((v: number
 
 export function score(vals: number[], enabled: boolean[], normalizers: ((v: number) => number)[]): number {
     const nvs = vals.map((val, i) => ({norm: normalizers[i], val})).filter(({val}, i) => enabled[i] && val !== null);
-    return nvs.map(({norm, val}) => norm(val)).reduce((a, b) => a + b, 0) / nvs.length;
+    return nvs.map(({norm, val}) => norm(val)).reduce((a, b) => a + b, 0) / enabled.map(v => v).length;
 }
 
 export function scoreToPctTxt(score: number): string {
     return `${(100 * (erf(score/Math.sqrt(2))/2+0.5)).toFixed(2)}%`;
+}
+
+export function scoreToTopPctTxt(score: number): string {
+    const pct = 100 * (erf(score/Math.sqrt(2))/2+0.5)
+    let round = 0;
+    if (pct >= 99.9999 || pct === 0) {
+        round = 0
+    } else if (pct >= 99.999) {
+        round = 4
+    } else if (pct >= 99.99) {
+        round = 3
+    } else if (pct >= 99.9) {
+        round = 2
+    } else if (pct >= 99) {
+        round = 1
+    } else if (pct >= 1) {
+        round = 0
+    } else if (pct < 1e-8) {
+        round = 0
+    } else {
+        let tmp = pct
+        while (tmp < 1) {
+            tmp *= 10
+            round += 1
+        }
+    }
+    return `${pct.toFixed(round)}%`;
 }
 
 function erf(x: number) {
