@@ -10,7 +10,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
-		"deploy": "npm run build && gh-pages -d build --nojekyll --cname gibit.kolman.si --no-history --user 'Automated Deployment <maks@kolman.si>'"
+		"deploy": "npm run build && gh-pages -d build --nojekyll --cname odbojkarski-karton.odbit.si --no-history --user 'Automated Deployment <maks@kolman.si>'"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",

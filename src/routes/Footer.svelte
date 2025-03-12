@@ -16,18 +16,20 @@ Analizo pripravil: <a href="mailto:maks@kolman.si">Maks Kolman</a>
     <h2>Podatki</h2>
     <p>Vsi podatki so iz testiranj, ki so bila opravljena med OdBit odbojkarskimi treningi Novembra 2024.</p>
     <h2>OdBita ocena</h2>
-    <p>OdBita ocena je osnovana na formuli, ki jo je iznašel trener Bojan Kristan. Formula iz rezultatov vseh vaj poda enotno oceno, ki zajema vse odbojkarske veščine.</p>
-    <p>OdBita ocena je povprečna vrednost spodnjih vrednosti:</p>
+    <p>OdBita oceno dobimo tako, da najprej vsako vajo ocenimo od 0 do 10 in nato vzamemo povprečno vrednost vseh devetih ocen. Formula iz rezultatov vseh vaj poda enotno oceno, ki zajema vse odbojkarske veščine.</p>
+    <p>Transformacija T<sub>m,s</sub>(x) je funkcija, ki je zasnovana na <a href="https://mathworld.wolfram.com/HyperbolicTangent.html">hiperboličnem tangesu</a> in je namenjena nelinearni preslikavi rezultatov v območje od 0 do 10. </p>
+    <p style="text-align: center"> T<sub>m,s</sub>(x) = 10 * <span class="fraction"><span style="border-bottom:1px solid; padding-bottom: 1px;">tanh((x-m)/s)+tanh(m/s)</span><span>1+tanh(m/s)</span></span></p>
+    <p>Parametra m in s sta določena za vsako vajo posebej. OdBita ocena je povprečna vrednost spodnjih količin:</p>
     <ul>
-        <li>(Spodnji odboj sede) / 5
-        <li>(Spodnji odboj z dotikom tal) / 3
-        <li>(Zgornji odboj sede) / 8
-        <li>(Zgornji odboj s ploskom) / 3
-        <li>(Zgornji-spodnji odboj) / 4
-        <li>Spodnji servis
-        <li>Zgornji servis
-        <li>Napadalni udarec
-        <li>(Dosežena višina) / 5
+        <li>T<sub>20,20</sub>(Spodnji odboj sede) </li>
+        <li>T<sub>0,20</sub>(Spodnji odboj z dotikom tal) </li>
+        <li>T<sub>30,20</sub>(Zgornji odboj sede) </li>
+        <li>T<sub>40,20</sub>(Zgornji odboj s ploskom) </li>
+        <li>T<sub>30,15</sub>(Zgornji-spodnji odboj) </li>
+        <li>Spodnji servis</li>
+        <li>Zgornji servis</li>
+        <li>Napadalni udarec</li>
+        <li>T<sub>290,20</sub>(Dosežena višina) </li>
     </ul>
     <h2>Percentili</h2>
     <p>Percentili so v grobem merilo za delež populacije, ki je pod vami. Na primer biti v 80. percentilu pomeni, biti nad 80% ljudmi v populaciji in pod 20% ljudmi.</p>
@@ -57,11 +59,19 @@ Analizo pripravil: <a href="mailto:maks@kolman.si">Maks Kolman</a>
         border: none;
         color: #1c93d1;
         text-decoration: underline;
+        cursor: pointer;
     }
     dialog {
         text-align: left;
+        max-width: 1100px;
     }
     dialog button {
         float: right;
+    }
+    .fraction {
+        display: inline-flex;
+        flex-direction: column;
+        text-align: center;
+        vertical-align: middle;
     }
 </style>

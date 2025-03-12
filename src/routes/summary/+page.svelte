@@ -91,7 +91,7 @@
     </thead>
     <tbody>
         <tr>
-            <td>Skupna ocena</td>
+            <td>Skupna OdBita ocena</td>
             <td>{score(row.vals, enabled, odBitScoreNormalizers).toFixed(2)}</td>
             {#if realPct }
                 {#each odBitScoreDataPerLevel as data, i}
@@ -106,7 +106,13 @@
         {#each row.vals as val, i}
             <tr>
                 <td>{exercises[i]}</td>
-                <td>{val === null ? '/' : val}</td>
+                <td>
+                    {#if val === null}
+                        /
+                    {:else}
+                        {val} ({odBitScoreNormalizers[i](val).toFixed(1)})
+                    {/if}
+                </td>
                 {#if realPct }
                     {#each dataPerLevelPerExercise as data, j}
                         <td>{getRealPct(data[i], val, dataPerLevel[j].some(r => row.name===r.name))}</td>

@@ -6,8 +6,8 @@ function stats(vals: number[]): {mean: number; std: number, max: number, min: nu
     const std = Math.sqrt(vals.map(val => Math.pow(val - mean, 2)).reduce((a, b) => a + b) / vals.length);
     return {mean, std, max: Math.max(...vals), min: Math.min(...vals)};
 }
-
-export function normalizer(vals: number[]): (val: number) => number {
+type normFn = (val: number) => number
+export function normalizer(vals: number[]): normFn {
     if (vals.length === 0) {
         return identity;
     }
@@ -19,16 +19,21 @@ function identity(val: number): number {
     return val;
 }
 
+function transformer(m: number, s: number): normFn {
+    const zero = Math.tanh(m/2)
+    return (v: number) => 10*(Math.tanh((v-m)/s)+zero)/(1+zero)
+}
+
 export const odBitScoreNormalizers = [
-    (val: number) => val/5,
-    (val: number) => val/3,
-    (val: number) => val/8,
-    (val: number) => val/3,
-    (val: number) => val/4,
+    transformer(20, 20),
+    transformer(0, 20),
+    transformer(30, 20),
+    transformer(40, 20),
+    transformer(30, 15),
     identity,
     identity,
     identity,
-    (val: number) => val/5,
+    transformer(290, 20),
 ]
 
 export function makeHistograms(data: Data[], groups: string[]|GroupBreakdown[], colors: string[], isPct: boolean = false): {datasets: {label: string, data: number[]}[]; labels: string[]}[] {
@@ -150,7 +155,8 @@ export function unify(data: Data[], enabled: boolean[], normalizers: ((v: number
 
 export function score(vals: number[], enabled: boolean[], normalizers: ((v: number) => number)[]): number {
     const nvs = vals.map((val, i) => ({norm: normalizers[i], val})).filter(({val}, i) => enabled[i] && val !== null);
-    return nvs.map(({norm, val}) => norm(val)).reduce((a, b) => a + b, 0) / enabled.map(v => v).length;
+    if (nvs.length === 0) return 0
+    return nvs.map(({norm, val}) => norm(val)).reduce((a, b) => a + b, 0) / nvs.length;
 }
 
 export function scoreToPctTxt(score: number): string {
