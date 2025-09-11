@@ -20,7 +20,7 @@ function identity(val: number): number {
 }
 
 function transformer(m: number, s: number): normFn {
-    const zero = Math.tanh(m/2)
+    const zero = Math.tanh(m/s)
     return (v: number) => 10*(Math.tanh((v-m)/s)+zero)/(1+zero)
 }
 
