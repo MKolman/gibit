@@ -5,7 +5,7 @@
 <hr>
 <button type="button" on:click={() => about.showModal()}>Metodologija</button>
 <br>
-Kontakt: <a href="mailto:info@gibit.si">info@gibit.si</a>
+Kontakt: <a href="mailto:info@gibit.si">info@odbit.si</a>
 <br>
 Analizo pripravil: <a href="mailto:maks@kolman.si">Maks Kolman</a>
 <br>
@@ -44,7 +44,7 @@ Analizo pripravil: <a href="mailto:maks@kolman.si">Maks Kolman</a>
     </ul>
     <h2>Živalski vzdevki</h2>
     <p>Zaradi zagotavljanja anonimnosti so vsi rezultati anonimizirani in objavljeni pod živalskimi šiframi.</p>
-    <p>Če ste bili novembra testirani, bi morali dobiti vašo šifro po emailu. Če je niste, nam pišite na <a href="mailto:info@gibit.si">info@gibit.si</a>.</p>
+    <p>Če ste bili novembra testirani, bi morali dobiti vašo šifro po emailu. Če je niste, nam pišite na <a href="mailto:info@odbit.si">info@odbit.si</a>.</p>
     <button on:click={() => about.close()}>Zapri</button>
 </dialog>
 

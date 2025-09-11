@@ -105,7 +105,7 @@
         const mul = sortAsc?-1:1;
         switch (sortColumn) {
             case totalColumn:
-                sortedPeople.sort((i, j) => mul*data[j[0]].vals.reduce((a, b, i) => a + (selectedExercises[i][1]?normalizers[i](b):0), 0) - mul*data[i[0]].vals.reduce((a, b, i) => a + (selectedExercises[i][1]?normalizers[i](b):0), 0));
+                sortedPeople.sort(([i], [j]) => mul*score(data[j].vals, selectedExercises.map(([_, v]) => v), normalizers) - mul*score(data[i].vals, selectedExercises.map(([_, v]) => v), normalizers) )
                 break
             case nameColumn:
                 sortedPeople.sort(([i], [j]) => data[i].name < data[j].name?mul:-mul)
@@ -188,8 +188,41 @@
         return mergeDeep({}, defaultChartOptions, {scales: {x: {type: "category", title: {display: false}, ticks: {autoSkip: false, maxRotation: 90, padding: 10}}}}, opts);
     }
 
+    function exportTableCSV(): string {
+        const enabled = selectedExercises.map(([_, en]) => en)
+        const filterEn = <T>(vals: T[]):T[] => vals.filter((_, i) => enabled[i])
+        let result = `Ime,Skupna Ocena,${filterEn(selectedExercises).map(([v]) => v).join(",")},Skupine\n`
+        for (const [idx, visible] of sortedPeople) {
+            if (!visible) {
+                continue
+            }
+            const p = data[idx]
+            const total = score(p.vals, enabled, normalizers)
+            result += `${p.name},${total},${filterEn(p.vals).join(",")},"${p.groups.join(',')}"\n`
+        }
+        return result
+    }
+
+    function downloadTable() {
+        // Create element with <a> tag
+        const link = document.createElement("a");
+
+        // Create a blog object with the file content which you want to add to the file
+        const file = new Blob([exportTableCSV()], { type: 'text/plain' });
+
+        // Add file content in the object URL
+        link.href = URL.createObjectURL(file);
+
+        // Add file name
+        link.download = "odbit_odbojkarski_karton.csv";
+
+        // Add click event to <a> tag to save file.
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
 </script>
-<h1><img src="/white_rabbit.png" alt="gibit logo">GIBIT ODBOJKARSKI KARTON</h1>
+<h1><img src="/white_rabbit.png" alt="gibit logo">ODBIT ODBOJKARSKI KARTON</h1>
 <div class="tabs">
     <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
     <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
@@ -261,7 +294,8 @@
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
+        
+                    <th><button style="cursor:pointer; border:none; background: none" on:click={downloadTable}><img src="/download.svg" alt="Prenesi" style="height:1em"></button></th>
                     <th on:click={() => setTableSortColumn(nameColumn)} class="{sortColumn === nameColumn && "sorted"} {sortAsc && "asc"}">Ime</th>
                     <th on:click={() => setTableSortColumn(groupsColumn)} class="{sortColumn === groupsColumn && "sorted"} {sortAsc && "asc"}">Skupina</th>
                     <th on:click={() => setTableSortColumn(totalColumn)} class="{sortColumn === totalColumn && "sorted"} {sortAsc && "asc"}">Skupna ocena</th>
