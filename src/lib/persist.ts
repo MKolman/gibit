@@ -15,7 +15,7 @@ class UrlGetterSetter<T> {
                 this.render = (value: T) => value?"1":"0"
                 break
             case "number":
-                this.parse = (value: string) => value.length === 1 && value[0] >= '0' && value[0] <= '3'?+value:null as any
+                this.parse = (value: string) => value.length === 1 && value[0] >= '0' && value[0] <= '4'?+value:null as any
                 this.render = (value: T) => value?.toString() || ""
                 break
             default:

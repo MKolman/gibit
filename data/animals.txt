@@ -1,164 +1,153 @@
-Aligator
-Anakonda
-Antilopa
-Bik
-Bivol
-Bober
-Čebela
-Delfin
-Galeb
-Gorila
-Grizli
-Hobotnica
-Jastreb
-Jazbec
-Jelen
-Jelen
-Kamela
-Kanarček
-Kenguru
-Kit
-Koala
-Kobilica
-Kokoš
-Kondor
-Konj
-Kormoran
-Kos
-Koza
-Kozorog
-Krava
-Krokodil
-Kuna
-Leopard
-Lev
-Ligenj
-Lisica
-Los
-Losos
-Mačka
-Medved
-Metulj
-Močerad
-Modras
-Mravlja
-Mula
-Netopir
-Noj
-Nosorog
-Orangutan
-Orel
-Orka
-Osa
-Osel
-Ovca
-Pajek
-Panda
-Papiga
-Pes
-Petelin
-Pikapolonica
-Pingvin
-Piton
-Podlasica
-Postrv
-Pujs
-Rakovica
-Ris
-Šimpanz
-Slon
-Sokol
-Sova
-Srna
-Štorklja
-Surikata
-Tarantela
-Tiger
-Tjulenj
-Tuna
-Vešča
-Veverica
-Vidra
-Volk
-Vrabec
-Žaba
-Zajec
-Zebra
-Želva
-Žerjav
-Žirafa
-Žolna
-Čaplja
-Zmaj
-Gepard
-Puma
-Iguana
-Jastog
-Pelikan
-Lastovka
-Mačka
-Sova
-Hrček
-Riba
-Krt
-Netopir
-Muha
-Komar
-Ježevec
-Piton
-Mamba
-Polž
-Merjasec
-Sraka
-Gos
-Fazan
-Nutrija
-Miš
-Rakun
-Hijena
-Šakal
-Gazela
-Lemur
-Hrt
-Dalmatinec
-Buldog
-Labradorec
-Prinašalec
-Ovčar
-Beagle
-Pudel
-Čivava
-Doberman
-Corgi
-Mops
-Bulmastif
-Rotvajler
-Kojot
-Bik
-Ovca
-Kunec
-Jež
-Bivol
-Lenivec
-Mrož
-Vrabec
-Puran
-Kobra
-Boa
-Kameleon
-Iguana
-Ščuka
-Vidra
-Postrv
-Krap
-Som
-Krastača
-Slavček
-Krap
-Ostriga
-Stonoga
-Raca
-Pangolin
-Okapi
-Aksolotl
-Nartničar
+F Anakonda
+F Antilopa
+F Boa
+F Čaplja
+F Čebela
+F Čivava
+F Gazela
+F Gorila
+F Gos
+F Hijena
+F Hobotnica
+F Iguana
+F Kamela
+F Koala
+F Kobilica
+F Kobra
+F Kokoš
+F Koza
+F Krastača
+F Krava
+F Kuna
+F Lastovka
+F Lisica
+F Mačka
+F Mačka
+F Mamba
+F Miš
+F Mravlja
+F Muha
+F Mula
+F Nutrija
+F Orka
+F Osa
+F Ostriga
+F Ovca
+F Ovca
+F Panda
+F Papiga
+F Pikapolonica
+F Podlasica
+F Postrv
+F Puma
+F Raca
+F Rakovica
+F Riba
+F Ščuka
+F Sova
+F Sraka
+F Srna
+F Stonoga
+F Štorklja
+F Surikata
+F Tarantela
+F Tuna
+F Vešča
+F Veverica
+F Vidra
+F Žaba
+F Zebra
+F Želva
+F Žirafa
+F Žolna
+M Aksolotl
+M Aligator
+M Beagle
+M Bik
+M Bivol
+M Bober
+M Buldog
+M Bulmastif
+M Corgi
+M Dalmatinec
+M Delfin
+M Doberman
+M Fazan
+M Galeb
+M Gepard
+M Grizli
+M Hrček
+M Hrt
+M Jastog
+M Jastreb
+M Jazbec
+M Jelen
+M Jež
+M Ježevec
+M Kameleon
+M Kanarček
+M Kenguru
+M Kit
+M Kojot
+M Komar
+M Kondor
+M Konj
+M Kormoran
+M Kos
+M Kozorog
+M Krap
+M Krokodil
+M Krt
+M Kunec
+M Labradorec
+M Lemur
+M Lenivec
+M Leopard
+M Lev
+M Ligenj
+M Los
+M Losos
+M Medved
+M Merjasec
+M Metulj
+M Močerad
+M Modras
+M Mops
+M Mrož
+M Nartničar
+M Netopir
+M Noj
+M Nosorog
+M Okapi
+M Orangutan
+M Orel
+M Osel
+M Ovčar
+M Pajek
+M Pangolin
+M Pelikan
+M Pes
+M Petelin
+M Pingvin
+M Piton
+M Polž
+M Prinašalec
+M Pudel
+M Pujs
+M Puran
+M Rakun
+M Ris
+M Rotvajler
+M Šakal
+M Šimpanz
+M Slavček
+M Slon
+M Sokol
+M Som
+M Tiger
+M Tjulenj
+M Volk
+M Vrabec
+M Zajec
+M Žerjav
+M Zmaj

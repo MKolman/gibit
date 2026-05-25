@@ -15,6 +15,9 @@ const levelColors: Map<string, string> = new Map([
 const patterns = ["line", "dot", "line-vertical", "square"]
 
 export function getGroupColors(groups: string[]|GroupBreakdown[], makePatterns: boolean = false): string[] {
+    if (typeof groups === 'string') {
+        groups = [groups]
+    }
     if (groups.length > 0 && typeof groups[0] === 'string') {
         return groups.map(v => levelColors.get(v as string)) as string[]
     }
@@ -94,6 +97,9 @@ const nameShorteners: Map<string, string> = new Map([
 export type GroupBreakdown = {index: number, level: string, location: string, day: string, shortName: string, name: string};
 
 export function parseGroups(groups: string[]): GroupBreakdown[] {
+    if (typeof groups === 'string') {
+        groups = [groups]
+    }
     return groups.map((name, index) => {
         const [dayAndLevel, location, _lj] = name.split(" (");
         const [day, level] = dayAndLevel.split(" - ");

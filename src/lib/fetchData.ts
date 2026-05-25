@@ -2,7 +2,10 @@
 function b64ToBytes(b64: string): Uint8Array {
     return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 }
-export async function fetchGibitEncData(search: URLSearchParams): Promise<{exercises: any, data: any}|undefined> {
+export async function fetchGibitEncData(search: URLSearchParams, suffix: string|undefined): Promise<{exercises: any, data: any}|undefined> {
+    if (!suffix) {
+        suffix = "";
+    }
     if (search.has("godmode")) {
         if (search.has("removegodpass")) {
             localStorage.removeItem("godpass");
@@ -14,10 +17,10 @@ export async function fetchGibitEncData(search: URLSearchParams): Promise<{exerc
                 localStorage.setItem("godpass", godPass);
             }
         }
-        const res = await fetch("gibit_z_imeni.json.enc");
+        const res = await fetch(`gibit_z_imeni${suffix}.json.enc`);
         return await loadGibitData(res, godPass, 'w+9dASOcmhEPhwmKn5IE4g==')
     } else {
-        const res = await fetch("gibit_zivali.json.enc");
+        const res = await fetch(`gibit_zivali${suffix}.json.enc`);
         return await loadGibitData(res, search.get("pass"), 'VoTyZIYxSqocdn6H/THSXw==')
     }
 }

@@ -1,21 +1,48 @@
 import csv
 import json
+import random
 from collections import defaultdict as dd
 
 def get_data():
-    with open('data_2024_12_08.csv', 'r') as f:
+    with open('data_2026_05_08.csv', 'r') as f:
         reader = csv.DictReader(f)
-        # print(reader.fieldnames[3:-3])
-        return reader.fieldnames[5:-3], list(reader)
-def get_groups():
-    with open('people_groups.csv', 'r') as f:
+        return reader.fieldnames[1: 11], list(reader)
+
+def get_exceptions():
+    with open('izjeme_2026_05_08.csv', 'r') as f:
         reader = csv.DictReader(f)
-        result = dd(list)
-        for row in reader:
-            if row["SKUPINA"] == "":
-                continue
-            result[row["IME"]].append(row["SKUPINA"][3:])
-        return result
+        return {row["Ime"]: row["Skupina"] for row in reader}
+
+title_map = {
+    "Spodnji odboj z dotikom tal (1 min)": "Spodnji odboj z dotikom tal z roko (60 sekund)",
+    "Spodnji odboj sede (30 sek.)": "Spodnji odboj v sede - 30 sek.",
+    "Zgornji - spodnji odboj (30 sek.)": "Izmenjava spodnji in zgornji odboj (30 sek)",
+}
+def fill_data(data):
+    old_data = dd(list)
+    with open('data_2024_12_08.csv') as f:
+        reader = csv.DictReader(f)
+        for l in reader:
+            old_data[l["Ime"].split("#")[-1]].append(l)
+    resolved = missing = 0
+    for line in data:
+        name = line["Ime in priimek"]
+        key = name.split("#")[-1]
+        missing += all(line[k] == "" for k in title_map)
+        if all(line[k] == "" for k in title_map) and key in old_data:
+            for old_line in old_data[key]:
+                if all(old_line[k] for k in title_map.values()):
+                    # print("Resolved", name)
+                    resolved += 1
+                    for k, v in title_map.items():
+                        line[k] = old_line[v]
+                    line["legacy_data"] = True
+                    break
+            else:
+                pass
+                # print("did not resolve", name)
+    # print(data[0])
+    print(f"resolved {resolved}/{missing} from old data")
 
 def find_missing(name, groups):
     result = []
@@ -53,10 +80,16 @@ def get_enc_data():
 def save_data(data, get_code):
     import os
     import base64
+    for row in data["data"]:
+        try:
+            row["sifra"] = get_code(row["name"])
+        except KeyError:
+            print(f"Missing code for {row['name']}")
     secrets = get_enc_data()
     jdata = json.dumps(data)
+    csv_dump(data)
     out = os.popen(f"printf {repr(jdata)} | openssl aes-256-cbc -K {secrets['god_key']} -base64 -iv {secrets['god_iv']}", mode='r').read()  
-    with open('../static/gibit_z_imeni.json.enc', 'wb') as f:
+    with open('../static/gibit_z_imeni2.json.enc', 'wb') as f:
         f.write(base64.b64decode(out))
     
     for row in data["data"]:
@@ -66,19 +99,42 @@ def save_data(data, get_code):
             print(f"Missing code for {row['name']}")
     jdata = json.dumps(data)
     out = os.popen(f"printf {repr(jdata)} | openssl aes-256-cbc -K {secrets['key']} -base64 -iv {secrets['iv']}", mode='r').read()  
-    with open('../static/gibit_zivali.json.enc', 'wb') as f:
+    with open('../static/gibit_zivali2.json.enc', 'wb') as f:
         f.write(base64.b64decode(out))
+
+def csv_dump(data):
+    with open("tmp.csv", "w") as f:
+        w = csv.writer(f)
+        w.writerow(["Ime", "Osnovna", "Rekreativna 1", "Rekreativna 2", "Nadaljevalna", "Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"])
+        for row in data["data"]:
+            lvls = [
+                any("osnovna" in g.lower() for g in row["groups"]),
+                any("rekreativna 1" in g.lower() for g in row["groups"]),
+                any("rekreativna 2" in g.lower() or "1 /2" in g for g in row["groups"]),
+                any("nadaljevalna" in g.lower() for g in row["groups"]),
+            ]
+            w.writerow([row["name"]] + lvls + row["vals"])
 
 def get_animals_mapping():
     with open('animals.txt', 'r') as f:
-         animals = set(map(str.strip, f))
+        animals = list(map(str.split, f))
+    with open('adj.txt', 'r') as f:
+        adj = list(map(str.split, f))
     with open('animals_mapping.csv', 'r') as f:
         existing = {r['Ime']: r['Šifra'] for r in csv.DictReader(f)}
-    animals -= set(existing.values())
+    def gen_random_name():
+        spol, zival = random.choice(animals)
+        pridev = random.choice(adj)
+        return f"{pridev[spol=="F"]} {zival}"
     def get_code(name):
-        if name not in existing:
-            existing[name] = animals.pop()
-        return existing[name]
+        if name in existing:
+            return existing[name]
+        code = gen_random_name()
+        while code in existing.values():
+            code = gen_random_name()
+        existing[name] = code
+        return code
+
     def persist():
         with open('animals_mapping.csv', 'w') as f:
             writer = csv.DictWriter(f, fieldnames=['Ime', 'Šifra'])
@@ -86,25 +142,69 @@ def get_animals_mapping():
             for name, code in existing.items():
                 writer.writerow({'Ime': name, 'Šifra': code})
     return get_code, persist
-        
+
+def remove_duplicates(data):
+    per_name = dd(list)
+    for row in data:
+        per_name[row["Ime in priimek"]].append(row)
+    result = []
+    for name, rows in per_name.items():
+        if len(rows) == 1:
+            result.append(rows[0])
+            continue
+
+        print(f"Found {len(rows)} entries for {name}")
+
+
+        for topic in ["POVPREČNA OCENA:", "sprejem - obramba", "podaja", "napad", "blok", "servis"]:
+            coach_scores = [r[topic] for r in rows if r[topic] and r[topic] not in 'xX/-\\']
+            if not coach_scores:
+                coach_score = ""
+            else:
+                coach_score = sum(float(s.replace(',', '.')) for s in coach_scores) / len(coach_scores)
+            rows[0][topic] = str(coach_score).replace('.', ',')
+    
+
+        height = [r["Telesna višina"] for r in rows if r["Telesna višina"]]
+        if not height:
+            height = ""
+        else:
+            height = height[0]
+        rows[0]["Telesna višina"] = str(height)
+
+        exs = list(sorted(title_map))
+        print(exs)
+        res = [[r[e] for e in exs] for r in rows]
+        best = max(res, key=lambda r: (-r.count(''), sum(int(x) if x else 0 for x in r)))
+        print(f"Best entry for {name} is {best} ({res})")
+        for e, v in zip(exs, best):
+            rows[0][e] = v
+
+        rows[0]["TRENER"] = ", ".join(set(r["TRENER"] for r in rows if r["TRENER"]))
+        result.append(rows[0])
+    return result
+
+
+
 def main():
     headers, data = get_data()
-    groups = get_groups()
+    data = remove_duplicates(data)
+    fill_data(data)
     result = {"exercises": headers, "data": []}
-
+    print(headers)
+    exceptions = get_exceptions()
     for row in data:
-        if row["Ime"] == "":
-            break
-        if row["Ime"] not in groups:
-            if name := find_missing(row["Ime"], groups):
-                row["Ime"] = name
-            else:
-                print(f"Skipping {row['Ime']}")
-                continue
+        if row["Ime in priimek"] == "":
+            continue
+        if "5251" in row["Ime in priimek"]:
+            print("row", row)
         result["data"].append({
-            "name": row["Ime"],
-            "groups": groups[row["Ime"]],
-            "vals": [int(row[header]) if row[header] else None for header in headers],
+            "name": row["Ime in priimek"],
+            "groups": row["Skupina"],
+            "coach": row["TRENER"],
+            "legacy_data": row.get("legacy_data", False),
+            "override": exceptions.get(row["Ime in priimek"], None),
+            "vals": [float(row[header].replace(',', '.')) if ',' in row[header] else int(row[header]) if row[header] and row[header].isdigit() else None for header in headers],
         })
     get_code, persist_code = get_animals_mapping()
     save_data(result, get_code)
