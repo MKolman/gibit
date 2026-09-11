@@ -1,468 +1,550 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-    import {makeHistograms, unify, normalizer, type Data, score, scoreToPctTxt, odBitScoreNormalizers, makeCandles } from "$lib/stat"
-    import Chart from './Chart.svelte'
-    import Picker from './Picker.svelte'
-    import Hint from './Hint.svelte'
-	import PeopleSearch from "./PeopleSearch.svelte";
-	import { page } from "$app/stores";
-	import { doesGroupMatch, isGroupSelected, levels, colors, extractGroups, type GroupBreakdown, getGroupColors, parseGroups } from "$lib/groups";
-	import Toggle from "./Toggle.svelte";
-	import Footer from "./Footer.svelte";
-    import * as persist from "$lib/persist"
-	import { mergeDeep } from "$lib/merge";
-	import { fetchGibitEncData } from "$lib/fetchData";
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import Footer from './Footer.svelte';
+  import { fetchPublicSheetData, type PlayerRow } from '$lib/fetchData';
 
-    const exercises: string[] = ["Spodnji odboj sede", "Spodnji odboj z dotikom tal", "Zgornji odboj sede", "Zgornji odboj s ploskom", "Zgornji-spodnji odboj", "Spodnji servis", "Zgornji servis", "Napadalni udarec", "Dosežena višina"]
-    const exHints: string[] = [
-        "Število zaporednih spodnjih odbojev, ki jih lahko narediš v 30 sekundah.",
-        "Število zaporednih spodnjih odbojev z vmesnim dotikom tal, ki jih lahko narediš v 60 sekundah.",
-        "Število zaporednih zgornjih odbojev, ki jih lahko narediš sede v 30 sekundah.",
-        "Število zaporednih zgornjih odbojev z vmesnim ploskom, ki jih lahko narediš v 30 sekundah.",
-        "Število zaporednih izmenjujočih zgornjih in spodnjih odbojev, ki jih lahko narediš v 30 sekundah.",
-        "Število spodnjih servisov, ki jih po paraleli zadaneš v zadnje 4 metre nasprotnega igrišča v desetih poizkusih.",
-        "Število zgornjih servisov, ki jih po paraleli zadaneš v zadnje 4 metre nasprotnega igrišča v desetih poizkusih.",
-        "Število napadalnih udarcev za 3m črto po lastnem izmetu, ki jih po paraleli zadaneš v 3m x 3m območje v oddaljenem kotu nasprotnega igrišča v desetih poizkusih.",
-        "S prsti dosežena višina v centimetrih pri skoku v višino iz mesta.",
-    ]
-    let originalExercises: string[] = exercises;
-    let selectedExercises: [string, boolean][] = exercises.map(v => [v, true]);
-    let data: Data[] = [];
+  let loading = true;
+  let error: string | null = null;
+  let players: PlayerRow[] = [];
+  let isGodmode = false;
 
-    // Persisted settings
-    let useLevelsAsGroups = true;
-    let tab = 0;
-    let useOdBitScore = true;
-    let useRelativeScore = false;
-    $: persist.useLevelsAsGroups.set($page.url.searchParams, useLevelsAsGroups)
-    $: persist.tab.set($page.url.searchParams, tab)
-    $: persist.useOdBitScore.set($page.url.searchParams, useOdBitScore)
-    $: persist.useRelativeScore.set($page.url.searchParams, useRelativeScore)
+  type SortKey =
+    | 'rank'
+    | 'name'
+    | 'vzdevek'
+    | 'skupnaOcena'
+    | 'ocenaTrenerja'
+    | 'ocenaIzVaj'
+    | 'sede'
+    | 'zgSp'
+    | 'dotik'
+    | 'visina'
+    | 'sprejem'
+    | 'podaja'
+    | 'napad'
+    | 'blok'
+    | 'servis'
+    | 'trener';
 
-    let groups: [string, boolean][]|[GroupBreakdown, boolean][];
-    $: groups = useLevelsAsGroups?levels.map(v => [v, true]):extractGroups(data).map(v => [v, true]);
-    $: selectedGroups = groups.filter(([_, v]) => v).map(([v]) => v) as string[] | GroupBreakdown[];
-    $: allColors = getGroupColors(groups.map(([v]) => v) as string[] | GroupBreakdown[], true)
-    $: selectedColors = groups.map((_, i) => allColors[i]).filter((_, i) => groups[i][1]);
-    $: selectedGroupsSet = new Set(selectedGroups.map(v => ((v as GroupBreakdown).name) || v as string));
-    $: filteredData = data.filter(v => isGroupSelected(v.groups, selectedGroupsSet, useLevelsAsGroups));
-    $: histogramData = makeHistograms(filteredData, selectedGroups, selectedColors);
-    $: totalHistogram = makeHistograms(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useOdBitScore);
-    $: candles = makeCandles(filteredData, selectedGroups, selectedColors);
-    $: totalCandles = makeCandles(unify(filteredData, selectedExercises.map(([_, v]) => v), normalizers), selectedGroups, selectedColors, !useOdBitScore);
-    $: normalizers = useOdBitScore?odBitScoreNormalizers:exercises.map((_, i) => normalizer((useRelativeScore?filteredData:data).map(v => v.vals[i])));
-    let selectedPeople: [number, boolean][] = [];
-    let sortedPeople: [number, boolean][] = [];
-    onMount(() => {
-        const sp = $page.url.searchParams
-        fetchGibitEncData(sp).then(v => {
-            if (v) {
-                ({exercises: originalExercises, data} = v);
-            }
-        })
-        tab = persist.tab.get(sp)
-        useOdBitScore = persist.useOdBitScore.get(sp)
-        useRelativeScore = persist.useRelativeScore.get(sp)
-        useLevelsAsGroups = persist.useLevelsAsGroups.get(sp)
-    });
-    type Column = number;
-    const nameColumn: Column = -1,
-          groupsColumn: Column = -2,
-          totalColumn: Column = -3;
-    let sortColumn: Column = totalColumn;
-    let sortAsc = false;
-    function setTableSortColumn(column: Column) {
-        if (sortColumn === column) {
-            sortAsc = !sortAsc
-        } else {
-            sortColumn = column
-            sortAsc = column === nameColumn
-        }
-    }
-    function getMaxGroupIdx(groups: string[]): number {
-        const lvls = [
-            '- nadaljevalna (',
-            'rekreativna 2 / nadaljevalna',
-            'rekreativna 2',
-            'rekreativna 1 /2',
-            '- rekreativna 1',
-            'osnovna / rekreativna 1',
-            'osnovna',
-        ]
-        let score = 0
-        for (let i = 0; i < lvls.length; i++) {
-            if (groups.some(g => g.includes(lvls[i])))
-                return lvls.length - i;
-        }
-        return score
-    }
-    $: {
-        if (tab === 2) {
-            sortedPeople = data.map((_, i) => [i, isGroupSelected(data[i].groups, selectedGroupsSet, useLevelsAsGroups)]);
-        } else {
-            sortedPeople = [...selectedPeople]
-        }
-        const mul = sortAsc?-1:1;
-        switch (sortColumn) {
-            case totalColumn:
-                sortedPeople.sort(([i], [j]) => mul*score(data[j].vals, selectedExercises.map(([_, v]) => v), normalizers) - mul*score(data[i].vals, selectedExercises.map(([_, v]) => v), normalizers) )
-                break
-            case nameColumn:
-                sortedPeople.sort(([i], [j]) => data[i].name < data[j].name?mul:-mul)
-                break
-            case groupsColumn:
-                sortedPeople.sort(([i], [j]) => mul*getMaxGroupIdx(data[i].groups) - mul*getMaxGroupIdx(data[j].groups))
-                break
-            default:
-                sortedPeople.sort(([i], [j]) => mul*data[j].vals[sortColumn] - mul*data[i].vals[sortColumn])
-        }
-    }
+  let sortColumn: SortKey = 'rank';
+  let sortAsc = false;
 
-    function footer(tooltipItems: any) {
-        const ti = tooltipItems as {dataset: {footer: string[]}, dataIndex: number}[];
-        return ti.map(({dataset, dataIndex}) => dataset.footer?.at(dataIndex)).join("\n");
+  const ranks = ['V.', 'IV.', 'III.', 'II.', 'I.', '?'];
+
+  function setTableSortColumn(col: SortKey) {
+    if (sortColumn === col) {
+      sortAsc = !sortAsc;
+    } else {
+      sortColumn = col;
+      sortAsc = col === 'name' || col === 'vzdevek' || col === 'trener';
     }
-    function titleLabel(tooltipItems: any) {
-        const ti = tooltipItems as {dataset: {titles: string[]}, dataIndex: number}[];
-        return ti.map(({dataset, dataIndex}) => dataset.titles?.at(dataIndex)).join("\n");
+  }
+
+  function formatScore(val: number | null | undefined): string {
+    if (val === null || val === undefined) return '/';
+    return Number.isInteger(val) ? val.toFixed(2) : val.toFixed(2);
+  }
+
+  function formatRaw(val: number | null | undefined): string {
+    if (val === null || val === undefined) return '/';
+    return String(val);
+  }
+
+  $: sortedPlayers = [...players].sort((a, b) => {
+    const mul = sortAsc ? 1 : -1;
+    switch (sortColumn) {
+      case 'rank': {
+        const rA = ranks.indexOf(a.predlogSkupine);
+        const rB = ranks.indexOf(b.predlogSkupine);
+        const rankDiff = (rA === -1 ? 99 : rA) - (rB === -1 ? 99 : rB);
+        if (rankDiff !== 0) return mul * -rankDiff;
+        const sA = a.godmode?.skupnaOcena ?? -1;
+        const sB = b.godmode?.skupnaOcena ?? -1;
+        return mul * (sB - sA);
+      }
+      case 'name': {
+        const nA = a.godmode?.name || a.vzdevek;
+        const nB = b.godmode?.name || b.vzdevek;
+        return mul * nA.localeCompare(nB);
+      }
+      case 'vzdevek':
+        return mul * a.vzdevek.localeCompare(b.vzdevek);
+      case 'skupnaOcena': {
+        const sA = a.godmode?.skupnaOcena ?? -1;
+        const sB = b.godmode?.skupnaOcena ?? -1;
+        return mul * (sA - sB);
+      }
+      case 'ocenaTrenerja': {
+        const sA = a.godmode?.ocenaTrenerja ?? -1;
+        const sB = b.godmode?.ocenaTrenerja ?? -1;
+        return mul * (sA - sB);
+      }
+      case 'ocenaIzVaj': {
+        const sA = a.godmode?.ocenaIzVaj ?? -1;
+        const sB = b.godmode?.ocenaIzVaj ?? -1;
+        return mul * (sA - sB);
+      }
+      case 'sede': {
+        const vA = a.spodnjiOdbojSede ?? -1;
+        const vB = b.spodnjiOdbojSede ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'zgSp': {
+        const vA = a.zgornjiSpodnjiOdboj ?? -1;
+        const vB = b.zgornjiSpodnjiOdboj ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'dotik': {
+        const vA = a.spodnjiOdbojDotikTal ?? -1;
+        const vB = b.spodnjiOdbojDotikTal ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'visina': {
+        const vA = a.telesnaVisina ?? -1;
+        const vB = b.telesnaVisina ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'sprejem': {
+        const vA = a.godmode?.sprejem ?? -1;
+        const vB = b.godmode?.sprejem ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'podaja': {
+        const vA = a.godmode?.podaja ?? -1;
+        const vB = b.godmode?.podaja ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'napad': {
+        const vA = a.godmode?.napad ?? -1;
+        const vB = b.godmode?.napad ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'blok': {
+        const vA = a.godmode?.blok ?? -1;
+        const vB = b.godmode?.blok ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'servis': {
+        const vA = a.godmode?.servis ?? -1;
+        const vB = b.godmode?.servis ?? -1;
+        return mul * (vA - vB);
+      }
+      case 'trener': {
+        const tA = a.godmode?.trener || '';
+        const tB = b.godmode?.trener || '';
+        return mul * tA.localeCompare(tB);
+      }
+      default:
+        return 0;
     }
-    function dataLabel(tooltipItem: any) {
-        const ti = tooltipItem as {dataset: {dataLabel: string[]}, dataIndex: number};
-        return ti.dataset.dataLabel?.at(ti.dataIndex);
-    }
-    function findColors(groups: string[], groupsList: [string, boolean][]|[GroupBreakdown, boolean][]) {
-        return getGroupColors(groups.map((group) => 
-            (groupsList.find(([g]) => doesGroupMatch(group, (g as GroupBreakdown).name || g as string))||["red"])[0] as any as string
-        ), false) as string[]
-    }
-    function formatNormalizedScore(score: number) {
-        if (useOdBitScore) {
-            return score.toFixed(2);
-        } else {
-            return scoreToPctTxt(score);
-        }
-    }
-    const defaultChartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-            duration: 0
-        },
-        plugins: {
-            legend: {
-                display:false
-            },
-            tooltip: {
-                callbacks: {footer, label: dataLabel, title: titleLabel},
-            }
-        },
-        scales: {
-            x: {
-                stacked: true,
-                title: {
-                    display: true,
-                    text:"Vrednost",
-                },
-                grid: {
-                    offset: false,
-                    tickBorderDashOffset: 5,
-                }
-            },
-            y: {
-                title: {
-                    display: true,
-                    text:"Število ljudi"
-                },
-                stacked: true,
-                ticks: {
-                    precision: 0
-                },
-            }
-        }
-    }
-    function makeOptions(opts: object) {
-        return mergeDeep({}, defaultChartOptions, opts);
+  });
+
+  function exportTableCSV(): string {
+    let result = 'Ime,Sifra,Skupina,Skupna Ocena,Ocena Trenerja,Ocena iz vaj,Trener,';
+    result +=
+      'Spodnji odboj sede,Spodnji odboj sede (ocena),' +
+      'Zgornji-spodnji odboj,Zgornji-spodnji odboj (ocena),' +
+      'Spodnji odboj z dotikom tal,Spodnji odboj z dotikom tal (ocena),' +
+      'Telesna višina,Telesna višina (ocena),' +
+      'sprejem-obramba,podaja,napad,blok,servis\n';
+
+    for (const p of sortedPlayers) {
+      const g = p.godmode;
+      const name = g?.name || p.vzdevek;
+      const sifra = p.vzdevek;
+      const rank = p.predlogSkupine;
+      const skupna = formatScore(g?.skupnaOcena);
+      const ocenaTrener = formatScore(g?.ocenaTrenerja);
+      const ocenaVaje = formatScore(g?.ocenaIzVaj);
+      const trener = g?.trener ? `"${g.trener}"` : '""';
+
+      const rawSede = formatRaw(p.spodnjiOdbojSede);
+      const normSede = formatScore(g?.normSede);
+
+      const rawZgSp = formatRaw(p.zgornjiSpodnjiOdboj);
+      const normZgSp = formatScore(g?.normZgSp);
+
+      const rawDotik = formatRaw(p.spodnjiOdbojDotikTal);
+      const normDotik = formatScore(g?.normDotik);
+
+      const rawVisina = formatRaw(p.telesnaVisina);
+      const normVisina = formatScore(g?.normVisina);
+
+      const sprejem = formatScore(g?.sprejem);
+      const podaja = formatScore(g?.podaja);
+      const napad = formatScore(g?.napad);
+      const blok = formatScore(g?.blok);
+      const servis = formatScore(g?.servis);
+
+      result += `${name},${sifra},${rank},${skupna},${ocenaTrener},${ocenaVaje},${trener},${rawSede},${normSede},${rawZgSp},${normZgSp},${rawDotik},${normDotik},${rawVisina},${normVisina},${sprejem},${podaja},${napad},${blok},${servis}\n`;
     }
 
-    function makeCandleOptions(opts: object) {
-        return mergeDeep({}, defaultChartOptions, {scales: {x: {type: "category", title: {display: false}, ticks: {autoSkip: false, maxRotation: 90, padding: 10}}}}, opts);
+    return result;
+  }
+
+  function downloadTable() {
+    const link = document.createElement('a');
+    const file = new Blob([exportTableCSV()], { type: 'text/csv;charset=utf-8;' });
+    link.href = URL.createObjectURL(file);
+    link.download = 'odbit_odbojkarski_karton.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  onMount(async () => {
+    try {
+      loading = true;
+      error = null;
+      const res = await fetchPublicSheetData($page.url.searchParams);
+      players = res.data;
+      isGodmode = res.isGodmode;
+    } catch (e: any) {
+      error = e.message || 'Napaka pri nalaganju podatkov.';
+    } finally {
+      loading = false;
     }
-
-    function exportTableCSV(): string {
-        const enabled = selectedExercises.map(([_, en]) => en)
-        const filterEn = <T>(vals: T[]):T[] => vals.filter((_, i) => enabled[i])
-        let result = `Ime,Skupna Ocena,${filterEn(selectedExercises).map(([v]) => v).join(",")},Skupine\n`
-        for (const [idx, visible] of sortedPeople) {
-            if (!visible) {
-                continue
-            }
-            const p = data[idx]
-            const total = score(p.vals, enabled, normalizers)
-            result += `${p.name},${total},${filterEn(p.vals).join(",")},"${p.groups.join(',')}"\n`
-        }
-        return result
-    }
-
-    function downloadTable() {
-        // Create element with <a> tag
-        const link = document.createElement("a");
-
-        // Create a blog object with the file content which you want to add to the file
-        const file = new Blob([exportTableCSV()], { type: 'text/plain' });
-
-        // Add file content in the object URL
-        link.href = URL.createObjectURL(file);
-
-        // Add file name
-        link.download = "odbit_odbojkarski_karton.csv";
-
-        // Add click event to <a> tag to save file.
-        link.click();
-        URL.revokeObjectURL(link.href);
-    }
-
+  });
 </script>
-<h1><img src="/white_rabbit.png" alt="gibit logo">ODBIT ODBOJKARSKI KARTON</h1>
-<div class="tabs">
-    <button class:active={tab === 0} on:click={() => tab = 0}>Posamezniki</button>
-    <button class:active={tab === 3} on:click={() => tab = 3}>Skupine</button>
-    <button class:active={tab === 1} on:click={() => tab = 1}>Izbrani</button>
-    <button class:active={tab === 2} on:click={() => tab = 2}>Tabela</button>
-</div>
-<div class="wrapper">
-    <div class="check-group">
-        <Picker allTxt="Vse vaje" hint="Za izračun skupne ocene se upoštevajo samo vaje, ki so izbrane. Tako si zlahka odgovorite na vprašanje kako bi vam šlo, če ne bi upoštevali npr. spodnjega servisa ali skoka v višino." bind:values={selectedExercises} />
-    </div>
-    <Toggle bind:value={useOdBitScore} labels={["Percentili", 'OdBita ocena']}  hint="Percentili vam povedo kolikšen procent ostalih igralcev je slabših od vas. OdBita ocena je z natančno izdelano formulo izračunana iz rezultatov testa."/>
-    {#if !useOdBitScore}
-        <p>
-            Računaj percentile glede na:<br>
-            <Toggle bind:value={useRelativeScore} labels={["vse skupine", "izbrane skupine"]} hint="Ali naj se percentili računajo glede na vse igralce, ali samo tiste, ki so v skupinah, ki so izbrane spodaj."/>
-        </p>
-    {:else}
-        <br>
-        <br>
-    {/if}
-    <Toggle bind:value={useLevelsAsGroups} labels={["Skupine", "Stopnje"]} hint="Stopnje so le štiri - od osnovne do nadaljevalne. Za bolj natančen pregled pa lahko primerjate posamične vadbene skupine točno po stopnji, dnevu vadbe in lokaciji."/>
-    <div class="check-group">
-        <Picker allTxt="Vse skupine" bind:values={groups} alt={1} colors={tab===1?null:allColors} sections={!useLevelsAsGroups && tab !== 1}/>
-    </div>
-    {#if tab === 0}
-        <h2>Skupna ocena <Hint message="Absolutna ocena, kot jo določi OdBita ocena. Ali relativna ocena merjena v standarnih odmikih od povprečja."/></h2>
-        <div class="chart">
-            <Chart config={{type: 'bar', data: totalHistogram[0], options: makeOptions({scales:{x:{title:{text:useOdBitScore?'OdBita ocena':'Odmik od povprečja [σ]'}}}})}} />
-        </div>
-        {#each selectedExercises as [name, visible], i}
-            {#if visible}
-            <h2>{name} <Hint message={exHints[i]}/></h2>
-            <div class="chart">
-                <Chart config={{type: 'bar', data: histogramData[i], options: makeOptions({scales:{x:{title:{text:name}}}})}} />
-            </div>
-            {/if}
-        {/each}
-    {/if}
-    {#if tab === 3}
-        <h2>Skupna ocena <Hint message="skupaj"/></h2>
-        <div class="chart">
-            <Chart config={{type: 'candlestick', data: totalCandles[0], options: makeCandleOptions({scales: {y:{ticks: {precision: 2}, title:{text:useOdBitScore?'OdBita ocena':'Odmik od povprečja [σ]'}}}})}} />
-        </div>
-        {#each selectedExercises as [name, visible], i}
-            {#if visible}
-            <h2>{name} <Hint message={exHints[i]}/></h2>
-            <div class="chart">
-                <Chart config={{type: 'candlestick', data: candles[i], options: makeCandleOptions({scales: {y:{title:{text:name}}}})}} />
-            </div>
-            {/if}
-        {/each}
-    {/if}
-    {#if tab === 1}
-        <div class="check-group">
-            <Picker allTxt="Vsi izbrani" bind:values={selectedPeople} labels={selectedPeople.map(([idx]) => data[idx].name)} alt={2} colors={colors}/>
-        </div>
-        <div class="check-group" style="flex-direction: row">
-            <PeopleSearch list={data.map(v => v.name)} disallow={selectedPeople.map(([v]) => v)} onclick={idx => selectedPeople = [...selectedPeople, [idx, true]]} />
-        </div>
 
-        <h2>Primerjava ljudi</h2>
-        <div class="chart">
-            <Chart config={{type: 'line', data: {labels: selectedExercises.filter(([_, v])=>v).map(([v]) => v), datasets: selectedPeople.filter(([_, v]) => v).map(([i], idx) => ({label: data[i].name, borderColor: colors[idx%colors.length], data: data[i].vals.map((v, j) => normalizers[j](v)).filter((_, i) => selectedExercises[i][1])}))}, options: {responsive: true, maintainAspectRatio: false, animation: {duration: 0}, plugins:{legend:{display:false}, tooltip: {callbacks: {footer: footer}}},scales: {x:{stacked: true}, y: {stacked: false}}}}} />
-        </div>
-    {/if}
-</div>
+<h1>
+  <img src="/white_rabbit.png" alt="gibit logo" />
+  ODBIT ODBOJKARSKI KARTON
+</h1>
+
 <div class="table-wrapper">
-    {#if tab === 1 || tab === 2}
-        <table>
-            <thead>
-                <tr>
-        
-                    <th><button style="cursor:pointer; border:none; background: none" on:click={downloadTable}><img src="/download.svg" alt="Prenesi" style="height:1em"></button></th>
-                    <th on:click={() => setTableSortColumn(nameColumn)} class="{sortColumn === nameColumn && "sorted"} {sortAsc && "asc"}">Ime</th>
-                    <th on:click={() => setTableSortColumn(groupsColumn)} class="{sortColumn === groupsColumn && "sorted"} {sortAsc && "asc"}">Skupina</th>
-                    <th on:click={() => setTableSortColumn(totalColumn)} class="{sortColumn === totalColumn && "sorted"} {sortAsc && "asc"}">Skupna ocena</th>
-                    {#each selectedExercises as [name, visible], i}
-                        {#if visible}
-                        <th on:click={() => setTableSortColumn(i)} class="{sortColumn === i && "sorted"} {sortAsc && "asc"}">{name}</th>
-                        {/if}
-                    {/each}
-                </tr>
-            </thead>
-            <tbody>
-                {#each sortedPeople as [idx, visible]}
-                    {#if visible}
-                    {@const shortGroups = parseGroups(data[idx].groups)}
-                    <tr>
-                        <td>.</td>
-                        <td>{data[idx].name}</td>
-                        <td>
-                            <span class="group-colors">
-                                {#each findColors(data[idx].groups, groups) as color, i}
-                                <span style="background: {color};" title={data[idx].groups[i]}>{shortGroups[i].shortName}</span>
-                                {/each}
-                            </span>
-                        </td>
-                        <td>{formatNormalizedScore(score(data[idx].vals, selectedExercises.map(([_, v]) => v), normalizers))}</td>
-                        {#each selectedExercises as [_, visible], i}
-                            {#if visible}
-                            <td>
-                                {#if data[idx].vals[i] !== null}
-                                    {data[idx].vals[i]} ({formatNormalizedScore(normalizers[i](data[idx].vals[i]))})
-                                {:else}
-                                    /
-                                {/if}
-                            </td>
-                            {/if}
-                        {/each}
-                    </tr>
-                    {/if}
-                {/each}
-            </tbody>
-        </table>
-    {/if}
-    <Footer />
+  {#if loading}
+    <div class="loading">Nalaganje podatkov...</div>
+  {:else if error}
+    <div class="error">{error}</div>
+  {:else}
+    <table>
+      <thead>
+        <tr>
+          <th>
+            {#if isGodmode}
+              <button
+                type="button"
+                class="download-btn"
+                title="Prenesi tabelo (CSV)"
+                on:click={downloadTable}
+              >
+                <img src="/download.svg" alt="Prenesi" />
+              </button>
+            {:else}
+              #
+            {/if}
+          </th>
+
+          {#if isGodmode}
+            <th
+              on:click={() => setTableSortColumn('name')}
+              class:sorted={sortColumn === 'name'}
+              class:asc={sortAsc}
+            >
+              Ime
+            </th>
+            <th
+              on:click={() => setTableSortColumn('vzdevek')}
+              class:sorted={sortColumn === 'vzdevek'}
+              class:asc={sortAsc}
+            >
+              Vzdevek
+            </th>
+          {:else}
+            <th
+              on:click={() => setTableSortColumn('vzdevek')}
+              class:sorted={sortColumn === 'vzdevek'}
+              class:asc={sortAsc}
+            >
+              Vzdevek
+            </th>
+          {/if}
+
+          <th
+            on:click={() => setTableSortColumn('rank')}
+            class:sorted={sortColumn === 'rank'}
+            class:asc={sortAsc}
+          >
+            Predlog skupine
+          </th>
+
+          {#if isGodmode}
+            <th
+              on:click={() => setTableSortColumn('skupnaOcena')}
+              class:sorted={sortColumn === 'skupnaOcena'}
+              class:asc={sortAsc}
+            >
+              Skupna ocena
+            </th>
+            <th
+              on:click={() => setTableSortColumn('ocenaTrenerja')}
+              class:sorted={sortColumn === 'ocenaTrenerja'}
+              class:asc={sortAsc}
+            >
+              Ocena trenerja
+            </th>
+            <th
+              on:click={() => setTableSortColumn('ocenaIzVaj')}
+              class:sorted={sortColumn === 'ocenaIzVaj'}
+              class:asc={sortAsc}
+            >
+              Ocena iz vaj
+            </th>
+          {/if}
+
+          <th
+            on:click={() => setTableSortColumn('sede')}
+            class:sorted={sortColumn === 'sede'}
+            class:asc={sortAsc}
+          >
+            Spodnji odboj sede
+          </th>
+          <th
+            on:click={() => setTableSortColumn('zgSp')}
+            class:sorted={sortColumn === 'zgSp'}
+            class:asc={sortAsc}
+          >
+            Zgornji-spodnji odboj
+          </th>
+          <th
+            on:click={() => setTableSortColumn('dotik')}
+            class:sorted={sortColumn === 'dotik'}
+            class:asc={sortAsc}
+          >
+            Spodnji odboj z dotikom tal
+          </th>
+          <th
+            on:click={() => setTableSortColumn('visina')}
+            class:sorted={sortColumn === 'visina'}
+            class:asc={sortAsc}
+          >
+            Telesna višina
+          </th>
+
+          {#if isGodmode}
+            <th
+              on:click={() => setTableSortColumn('sprejem')}
+              class:sorted={sortColumn === 'sprejem'}
+              class:asc={sortAsc}
+            >
+              sprejem-obramba
+            </th>
+            <th
+              on:click={() => setTableSortColumn('podaja')}
+              class:sorted={sortColumn === 'podaja'}
+              class:asc={sortAsc}
+            >
+              podaja
+            </th>
+            <th
+              on:click={() => setTableSortColumn('napad')}
+              class:sorted={sortColumn === 'napad'}
+              class:asc={sortAsc}
+            >
+              napad
+            </th>
+            <th
+              on:click={() => setTableSortColumn('blok')}
+              class:sorted={sortColumn === 'blok'}
+              class:asc={sortAsc}
+            >
+              blok
+            </th>
+            <th
+              on:click={() => setTableSortColumn('servis')}
+              class:sorted={sortColumn === 'servis'}
+              class:asc={sortAsc}
+            >
+              servis
+            </th>
+            <th
+              on:click={() => setTableSortColumn('trener')}
+              class:sorted={sortColumn === 'trener'}
+              class:asc={sortAsc}
+            >
+              Trener
+            </th>
+          {/if}
+        </tr>
+      </thead>
+      <tbody>
+        {#each sortedPlayers as p}
+          <tr>
+            <td>.</td>
+            {#if isGodmode}
+              <td>
+                {#if p.godmode?.ocenaTrenerja && p.godmode?.ocenaIzVaj && Math.abs(p.godmode.ocenaTrenerja - p.godmode.ocenaIzVaj) > 1}
+                  <span class="alert" title="Ocena trenerja odstopa za več kot 1">!!!!</span>
+                {/if}
+                {p.godmode?.name || p.vzdevek}
+              </td>
+              <td>{p.vzdevek}</td>
+            {:else}
+              <td>{p.vzdevek}</td>
+            {/if}
+
+            <td>{p.predlogSkupine}</td>
+
+            {#if isGodmode}
+              <td>{formatScore(p.godmode?.skupnaOcena)}</td>
+              <td>{formatScore(p.godmode?.ocenaTrenerja)}</td>
+              <td>{formatScore(p.godmode?.ocenaIzVaj)}</td>
+            {/if}
+
+            <td>
+              {formatRaw(p.spodnjiOdbojSede)}
+              {#if isGodmode && p.godmode?.normSede !== null && p.godmode?.normSede !== undefined}
+                ({formatScore(p.godmode.normSede)})
+              {/if}
+            </td>
+            <td>
+              {formatRaw(p.zgornjiSpodnjiOdboj)}
+              {#if isGodmode && p.godmode?.normZgSp !== null && p.godmode?.normZgSp !== undefined}
+                ({formatScore(p.godmode.normZgSp)})
+              {/if}
+            </td>
+            <td>
+              {formatRaw(p.spodnjiOdbojDotikTal)}
+              {#if isGodmode && p.godmode?.normDotik !== null && p.godmode?.normDotik !== undefined}
+                ({formatScore(p.godmode.normDotik)})
+              {/if}
+            </td>
+            <td>
+              {formatRaw(p.telesnaVisina)}
+              {#if isGodmode && p.godmode?.normVisina !== null && p.godmode?.normVisina !== undefined}
+                ({formatScore(p.godmode.normVisina)})
+              {/if}
+            </td>
+
+            {#if isGodmode}
+              <td>{formatScore(p.godmode?.sprejem)}</td>
+              <td>{formatScore(p.godmode?.podaja)}</td>
+              <td>{formatScore(p.godmode?.napad)}</td>
+              <td>{formatScore(p.godmode?.blok)}</td>
+              <td>{formatScore(p.godmode?.servis)}</td>
+              <td>{p.godmode?.trener || ''}</td>
+            {/if}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  {/if}
+  <Footer />
 </div>
+
 <style>
-    :global(body) {
-        margin: 0;
-    }
-    :global(body) * {
-        font-family: "Ubuntu", sans;
-    }
-    h1 {
-        background-color: #1c93d1;
-        margin: 0;
-        padding: 0.5em;
-        color: white;
-        text-align: center;
-    }
-    h2 {
-        margin-top: 1.5em;
-    }
-    .wrapper {
-        max-width: 1050px;
-        margin: auto;
-    }
-    .table-wrapper {
-        text-align: center;
-    }
-    @media only screen and (min-width: 600px) {
-        .wrapper {
-            padding-left: 2em;
-            padding-right: 2em;
-        }
-        .table-wrapper {
-            padding-left: 1em;
-            padding-right: 1em;
-        }
-    }
-    .tabs {
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-    }
-    .tabs button {
-        padding: 0.5em;
-        width: 100%;
-        max-width: 200pt;
-        margin: 1em 0;
-        background: none;
-        border: none;
-        font-size: large;
-    }
-    .tabs button.active {
-        border-bottom: #6cac44 3px solid;
-    }
-    .check-group {
-        display: flex;
-        flex-direction: column;
-        flex-wrap: wrap;
-        margin-bottom: 1em;
-        margin-top: 1em;
-    }
-    .group-colors {
-        display: flex;
-    }
-    .group-colors span {
-        border: 1px solid black;
-        color: white;
-        display: inline-block;
-        flex: 1;
-        text-align: center;
-    }
-    .chart {
-        max-height: 500px;
-    }
-    * {
-        font-family: sans-serif;
-    }
-    table {
-        margin-top: 3em;
-        max-width: 100%;
-        display: inline-block;
-        overflow-x: auto;
-    }
-    table thead th {
-        padding: 0.8em;
-        font-weight: normal;
-        position: relative;
-        cursor: pointer;
-    }
-    table thead th.sorted::after {
-        content: '▼';
-        position: absolute;
-        right: 0;
-        height: 1em;
-        line-height: 1em;
-        top: calc(50% - 0.5em)
-
-    }
-    table thead th.sorted.asc::after {
-        content: '▲';
-
-    }
-    tbody tr {
-        counter-increment: rowNumber;
-    }
-    tbody tr td:first-child::before {
-        content: counter(rowNumber);
-        min-width: 1em;
-    }
-    td:nth-child(2), th:nth-child(2) {
-        position: sticky;
-        left: 0;
-        z-index: 10;
-    }
-    td {
-        text-align: left;
-    }
-    thead, thead th:nth-child(2) {
-        background: #1c93d1;
-        color: white;
-    }
-    tbody tr:nth-child(even) td:nth-child(2) {
-        background: #fff;
-    }
-    tbody tr:nth-child(odd), tbody tr:nth-child(odd) td:nth-child(2) {
-        background: #f0f0f0;
-    }
-
+  :global(body) {
+    margin: 0;
+  }
+  :global(body) * {
+    font-family: 'Ubuntu', sans-serif;
+  }
+  h1 {
+    background-color: #1c93d1;
+    margin: 0;
+    padding: 0.5em;
+    color: white;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+  }
+  h1 img {
+    height: 1.4em;
+  }
+  .table-wrapper {
+    text-align: center;
+    max-width: 100vw;
+    overflow-x: auto;
+    padding-bottom: 2em;
+  }
+  .loading,
+  .error {
+    margin: 3em auto;
+    font-size: 1.2em;
+    color: #555;
+  }
+  .error {
+    color: #c00;
+  }
+  table {
+    margin-top: 1.5em;
+    max-width: 100%;
+    display: inline-block;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+  thead th {
+    padding: 0.8em;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #1c93d1;
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  thead th.sorted::after {
+    content: ' ▼';
+    font-size: 0.8em;
+  }
+  thead th.sorted.asc::after {
+    content: ' ▲';
+    font-size: 0.8em;
+  }
+  tbody tr {
+    counter-increment: rowNumber;
+  }
+  tbody tr td:first-child::before {
+    content: counter(rowNumber);
+    min-width: 1em;
+  }
+  td:first-child {
+    color: #888;
+    font-size: 0.9em;
+    padding: 0.6em 0.8em;
+  }
+  td:nth-child(2),
+  th:nth-child(2) {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+  }
+  th:nth-child(2) {
+    z-index: 30;
+    background: #1c93d1;
+  }
+  td {
+    text-align: left;
+    padding: 0.6em 0.8em;
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) td:nth-child(2) {
+    background: #fff;
+  }
+  tbody tr:nth-child(odd),
+  tbody tr:nth-child(odd) td:nth-child(2) {
+    background: #f5f5f5;
+  }
+  .alert {
+    color: red;
+    font-weight: bold;
+    margin-right: 0.3em;
+  }
+  .download-btn {
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+  }
+  .download-btn img {
+    height: 1.2em;
+    filter: brightness(0) invert(1);
+  }
 </style>
