@@ -224,6 +224,46 @@
     node.focus();
   }
 
+  // Razbije besedilo na dele; deli, ki se ujemajo s katerokoli besedo iskalnega
+  // niza (neobčutljivo na velikost črk), so označeni za krepki prikaz.
+  function highlightParts(
+    value: string,
+    query: string
+  ): { text: string; hl: boolean }[] {
+    const words = [...new Set(normalizeText(query).split(' ').filter((w) => w))].sort(
+      (a, b) => b.length - a.length
+    );
+    if (words.length === 0 || !value) return [{ text: value, hl: false }];
+    const lower = value.toLowerCase();
+    const ranges: [number, number][] = [];
+    for (const w of words) {
+      let from = 0;
+      while (true) {
+        const i = lower.indexOf(w, from);
+        if (i === -1) break;
+        ranges.push([i, i + w.length]);
+        from = i + 1;
+      }
+    }
+    if (ranges.length === 0) return [{ text: value, hl: false }];
+    ranges.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+    const merged: [number, number][] = [];
+    for (const r of ranges) {
+      const last = merged[merged.length - 1];
+      if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+      else merged.push([r[0], r[1]]);
+    }
+    const parts: { text: string; hl: boolean }[] = [];
+    let pos = 0;
+    for (const [s, e] of merged) {
+      if (s > pos) parts.push({ text: value.slice(pos, s), hl: false });
+      parts.push({ text: value.slice(s, e), hl: true });
+      pos = e;
+    }
+    if (pos < value.length) parts.push({ text: value.slice(pos), hl: false });
+    return parts;
+  }
+
   function clearNameSearch() {
     searchName = '';
     searchingName = false;
@@ -640,11 +680,33 @@
                 {#if p.godmode?.ocenaTrenerja && p.godmode?.ocenaIzVaj && Math.abs(p.godmode.ocenaTrenerja - p.godmode.ocenaIzVaj) > 1}
                   <span class="alert" title="Ocena trenerja odstopa za več kot 1">!!!!</span>
                 {/if}
-                {p.godmode?.name || p.vzdevek}
+                {#if normalizeText(searchName)}
+                  {#each highlightParts(p.godmode?.name || p.vzdevek, searchName) as part}
+                    {#if part.hl}<strong>{part.text}</strong>{:else}{part.text}{/if}
+                  {/each}
+                {:else}
+                  {p.godmode?.name || p.vzdevek}
+                {/if}
               </td>
-              <td>{p.vzdevek}</td>
+              <td>
+                {#if normalizeText(searchVzdevek)}
+                  {#each highlightParts(p.vzdevek, searchVzdevek) as part}
+                    {#if part.hl}<strong>{part.text}</strong>{:else}{part.text}{/if}
+                  {/each}
+                {:else}
+                  {p.vzdevek}
+                {/if}
+              </td>
             {:else}
-              <td>{p.vzdevek}</td>
+              <td>
+                {#if normalizeText(searchVzdevek)}
+                  {#each highlightParts(p.vzdevek, searchVzdevek) as part}
+                    {#if part.hl}<strong>{part.text}</strong>{:else}{part.text}{/if}
+                  {/each}
+                {:else}
+                  {p.vzdevek}
+                {/if}
+              </td>
             {/if}
 
             <td>{p.predlogSkupine}</td>
