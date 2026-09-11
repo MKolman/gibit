@@ -9,6 +9,10 @@
   let players: PlayerRow[] = [];
   let isGodmode = false;
   let enabledTests: string[] = [];
+  let searchName = '';
+  let searchVzdevek = '';
+  let searchingName = false;
+  let searchingVzdevek = false;
 
   type SortKey =
     | 'rank'
@@ -109,9 +113,9 @@
       ? players
       : players.filter((p) => !p.testiranje || enabledTests.includes(p.testiranje));
 
-  $: sortedPlayers = [...filteredPlayers].sort((a, b) => {
-    const mul = sortAsc ? 1 : -1;
-    switch (sortColumn) {
+  function comparePlayers(a: PlayerRow, b: PlayerRow, column: SortKey, asc: boolean): number {
+    const mul = asc ? 1 : -1;
+    switch (column) {
       case 'rank': {
         const rA = ranks.indexOf(a.predlogSkupine);
         const rB = ranks.indexOf(b.predlogSkupine);
@@ -196,7 +200,81 @@
       default:
         return 0;
     }
-  });
+  }
+
+  // Normalizacija za iskanje: male črke, presledki in ločila (.,-~!?) postanejo en presledek
+  function normalizeText(s: string): string {
+    return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  }
+
+  function matchesFull(value: string, query: string): boolean {
+    const q = normalizeText(query);
+    if (!q) return false;
+    return normalizeText(value).includes(q);
+  }
+
+  function matchesAnyWord(value: string, query: string): boolean {
+    const words = normalizeText(query).split(' ').filter((w) => w);
+    if (words.length === 0) return false;
+    const v = normalizeText(value);
+    return words.some((w) => v.includes(w));
+  }
+
+  function autofocus(node: HTMLInputElement) {
+    node.focus();
+  }
+
+  function clearNameSearch() {
+    searchName = '';
+    searchingName = false;
+  }
+
+  function clearVzdevekSearch() {
+    searchVzdevek = '';
+    searchingVzdevek = false;
+  }
+
+  // Najprej vrstice, ki vsebujejo celoten iskalni niz, nato tiste, ki vsebujejo
+  // katerokoli besedo; znotraj vsake skupine velja izbrano razvrščanje.
+  // Stolpca sortColumn/sortAsc sta namerna argumenta, da ostane stavek
+  // reaktiven tudi na klike po glavah stolpcev.
+  function applySearchAndSort(
+    rows: PlayerRow[],
+    nameQuery: string,
+    vzdevekQuery: string,
+    column: SortKey,
+    asc: boolean
+  ): PlayerRow[] {
+    const qN = normalizeText(nameQuery);
+    const qV = normalizeText(vzdevekQuery);
+    if (!qN && !qV) return [...rows].sort((a, b) => comparePlayers(a, b, column, asc));
+    const scored: { p: PlayerRow; key: number }[] = [];
+    for (const p of rows) {
+      let key = 0;
+      if (qN) {
+        const v = p.godmode?.name || p.vzdevek;
+        if (matchesFull(v, qN)) key += 0;
+        else if (matchesAnyWord(v, qN)) key += 1;
+        else continue;
+      }
+      if (qV) {
+        if (matchesFull(p.vzdevek, qV)) key += 0;
+        else if (matchesAnyWord(p.vzdevek, qV)) key += 1;
+        else continue;
+      }
+      scored.push({ p, key });
+    }
+    scored.sort((a, b) => a.key - b.key || comparePlayers(a.p, b.p, column, asc));
+    return scored.map((s) => s.p);
+  }
+
+  $: sortedPlayers = applySearchAndSort(
+    filteredPlayers,
+    searchName,
+    searchVzdevek,
+    sortColumn,
+    sortAsc
+  );
 
   function exportTableCSV(): string {
     let result = 'Ime,Sifra,Testiranje,Skupina,Skupna Ocena,Ocena Trenerja,Ocena iz vaj,Trener,';
@@ -325,26 +403,116 @@
 
           {#if isGodmode}
             <th
-              on:click={() => setTableSortColumn('name')}
+              on:click={() => !searchingName && setTableSortColumn('name')}
               class:sorted={sortColumn === 'name'}
               class:asc={sortAsc}
             >
-              Ime
+              {#if searchingName}
+                <span class="search-wrap">
+                  <input
+                    bind:value={searchName}
+                    use:autofocus
+                    placeholder="Išči..."
+                    on:click|stopPropagation={() => {}}
+                    on:keydown={(e) => {
+                      if (e.key === 'Escape') clearNameSearch();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    class="search-clear"
+                    title="Počisti iskanje"
+                    on:click|stopPropagation={clearNameSearch}
+                  >
+                    ✕
+                  </button>
+                </span>
+              {:else}
+                Ime
+                <button
+                  type="button"
+                  class="search-toggle"
+                  title="Išči po imenu"
+                  on:click|stopPropagation={() => (searchingName = true)}
+                >
+                  🔍
+                </button>
+              {/if}
             </th>
             <th
-              on:click={() => setTableSortColumn('vzdevek')}
+              on:click={() => !searchingVzdevek && setTableSortColumn('vzdevek')}
               class:sorted={sortColumn === 'vzdevek'}
               class:asc={sortAsc}
             >
-              Vzdevek
+              {#if searchingVzdevek}
+                <span class="search-wrap">
+                  <input
+                    bind:value={searchVzdevek}
+                    use:autofocus
+                    placeholder="Išči..."
+                    on:click|stopPropagation={() => {}}
+                    on:keydown={(e) => {
+                      if (e.key === 'Escape') clearVzdevekSearch();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    class="search-clear"
+                    title="Počisti iskanje"
+                    on:click|stopPropagation={clearVzdevekSearch}
+                  >
+                    ✕
+                  </button>
+                </span>
+              {:else}
+                Vzdevek
+                <button
+                  type="button"
+                  class="search-toggle"
+                  title="Išči po vzdevku"
+                  on:click|stopPropagation={() => (searchingVzdevek = true)}
+                >
+                  🔍
+                </button>
+              {/if}
             </th>
           {:else}
             <th
-              on:click={() => setTableSortColumn('vzdevek')}
+              on:click={() => !searchingVzdevek && setTableSortColumn('vzdevek')}
               class:sorted={sortColumn === 'vzdevek'}
               class:asc={sortAsc}
             >
-              Vzdevek
+              {#if searchingVzdevek}
+                <span class="search-wrap">
+                  <input
+                    bind:value={searchVzdevek}
+                    use:autofocus
+                    placeholder="Išči..."
+                    on:click|stopPropagation={() => {}}
+                    on:keydown={(e) => {
+                      if (e.key === 'Escape') clearVzdevekSearch();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    class="search-clear"
+                    title="Počisti iskanje"
+                    on:click|stopPropagation={clearVzdevekSearch}
+                  >
+                    ✕
+                  </button>
+                </span>
+              {:else}
+                Vzdevek
+                <button
+                  type="button"
+                  class="search-toggle"
+                  title="Išči po vzdevku"
+                  on:click|stopPropagation={() => (searchingVzdevek = true)}
+                >
+                  🔍
+                </button>
+              {/if}
             </th>
           {/if}
 
@@ -710,6 +878,40 @@
     padding: 0;
     display: inline-flex;
     align-items: center;
+  }
+  .search-toggle {
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0 0 0 0.3em;
+    font-size: 0.9em;
+    line-height: 1;
+  }
+  .search-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+  }
+  .search-wrap input {
+    width: 9em;
+    max-width: 100%;
+    padding: 0.25em 0.5em;
+    border: none;
+    border-radius: 0.4em;
+    font-size: 0.85em;
+    font-weight: 400;
+    color: #222;
+    cursor: text;
+    user-select: text;
+  }
+  .search-clear {
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: white;
+    font-size: 0.9em;
+    line-height: 1;
+    padding: 0;
   }
   .download-btn img {
     height: 1.2em;
