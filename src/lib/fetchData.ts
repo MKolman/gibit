@@ -1,5 +1,6 @@
 export interface GodmodeData {
   name: string;
+  testiranje?: string;
   skupnaOcena: number | null;
   ocenaTrenerja: number | null;
   ocenaIzVaj: number | null;
@@ -19,6 +20,7 @@ export interface GodmodeData {
 
 export interface PlayerRow {
   vzdevek: string;
+  testiranje: string;
   predlogSkupine: string;
   spodnjiOdbojSede: number | null;
   zgornjiSpodnjiOdboj: number | null;
@@ -29,8 +31,7 @@ export interface PlayerRow {
 }
 
 const PUBLIC_SHEET_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/1YtuMO9YFmtLrn4-soOvor7utv9o7OQ1k-6MINFaKY74/gviz/tq?tqx=out:csv';
-
+  'https://docs.google.com/spreadsheets/d/1YtuMO9YFmtLrn4-soOvor7utv9o7OQ1k-6MINFaKY74/export?format=csv';
 const GOD_IV_B64 = 'w+9dASOcmhEPhwmKn5IE4g==';
 
 function b64ToBytes(b64: string): Uint8Array {
@@ -140,6 +141,7 @@ export async function fetchPublicSheetData(
   const players: PlayerRow[] = rawRows.map((r) => {
     return {
       vzdevek: r['Vzdevek'] || '',
+      testiranje: (r['Testiranje'] || '').trim(),
       predlogSkupine: r['Predlog Skupine'] || '?',
       spodnjiOdbojSede: parseNum(r['Spodnji odboj sede']),
       zgornjiSpodnjiOdboj: parseNum(r['Zgornji - spodnji odboj']),
@@ -178,6 +180,10 @@ export async function fetchPublicSheetData(
             const dec = await decryptGodmode(player.godmodeRaw, cryptoKey, iv);
             if (dec) {
               player.godmode = dec;
+              // Rezervni vir oznake testiranja, če stolpec v CSV manjka
+              if (!player.testiranje && dec.testiranje) {
+                player.testiranje = dec.testiranje;
+              }
             }
           }
         })

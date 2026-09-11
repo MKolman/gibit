@@ -8,6 +8,7 @@
   let error: string | null = null;
   let players: PlayerRow[] = [];
   let isGodmode = false;
+  let enabledTests: string[] = [];
 
   type SortKey =
     | 'rank'
@@ -51,7 +52,64 @@
     return String(val);
   }
 
-  $: sortedPlayers = [...players].sort((a, b) => {
+  function splitTestTag(tag: string): { year: string; month: string; type: string } | null {
+    const m = /^(\d{4})-(\d{1,2})-(.+)$/.exec(tag.trim());
+    if (!m) return null;
+    return { year: m[1], month: m[2], type: m[3] };
+  }
+
+  function parseTestTag(tag: string): { year: number; month: number; type: string } | null {
+    const p = splitTestTag(tag);
+    if (!p) return null;
+    return { year: parseInt(p.year, 10), month: parseInt(p.month, 10), type: p.type };
+  }
+
+  function capitalize(s: string): string {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  // Ikona tipa testiranja: ☀️ za mivko, 🏫 za dvorano
+  function testTypeIcon(tag: string): string {
+    const t = splitTestTag(tag)?.type.toLowerCase();
+    if (t === 'mivka') return '☀️';
+    if (t === 'dvorana') return '🏫';
+    return '❓';
+  }
+
+  // Kronološka primerjava oznak oblike <leto>-<mesec>-<tip> (naraščajoče).
+  function compareTestTags(a: string, b: string): number {
+    const pa = parseTestTag(a);
+    const pb = parseTestTag(b);
+    if (!pa && !pb) return a.localeCompare(b);
+    if (!pa) return -1;
+    if (!pb) return 1;
+    if (pa.year !== pb.year) return pa.year - pb.year;
+    if (pa.month !== pb.month) return pa.month - pb.month;
+    if (pa.type !== pb.type) return pa.type < pb.type ? -1 : 1;
+    return 0;
+  }
+
+  function getSortedTestTags(rows: PlayerRow[]): string[] {
+    return [...new Set(rows.map((p) => p.testiranje).filter((t) => t))].sort(compareTestTags);
+  }
+
+  function toggleTest(tag: string) {
+    if (enabledTests.includes(tag)) {
+      enabledTests = enabledTests.filter((t) => t !== tag);
+    } else {
+      enabledTests = [...enabledTests, tag].sort(compareTestTags);
+    }
+  }
+
+  $: availableTests = getSortedTestTags(players);
+  // Oznako v prvem stolpcu pokažemo le, ko je vključenih več testov hkrati
+  $: showTestTag = enabledTests.length > 1;
+  $: filteredPlayers =
+    availableTests.length === 0
+      ? players
+      : players.filter((p) => !p.testiranje || enabledTests.includes(p.testiranje));
+
+  $: sortedPlayers = [...filteredPlayers].sort((a, b) => {
     const mul = sortAsc ? 1 : -1;
     switch (sortColumn) {
       case 'rank': {
@@ -141,7 +199,7 @@
   });
 
   function exportTableCSV(): string {
-    let result = 'Ime,Sifra,Skupina,Skupna Ocena,Ocena Trenerja,Ocena iz vaj,Trener,';
+    let result = 'Ime,Sifra,Testiranje,Skupina,Skupna Ocena,Ocena Trenerja,Ocena iz vaj,Trener,';
     result +=
       'Spodnji odboj sede,Spodnji odboj sede (ocena),' +
       'Zgornji-spodnji odboj,Zgornji-spodnji odboj (ocena),' +
@@ -153,6 +211,7 @@
       const g = p.godmode;
       const name = g?.name || p.vzdevek;
       const sifra = p.vzdevek;
+      const test = p.testiranje || '';
       const rank = p.predlogSkupine;
       const skupna = formatScore(g?.skupnaOcena);
       const ocenaTrener = formatScore(g?.ocenaTrenerja);
@@ -177,7 +236,7 @@
       const blok = formatScore(g?.blok);
       const servis = formatScore(g?.servis);
 
-      result += `${name},${sifra},${rank},${skupna},${ocenaTrener},${ocenaVaje},${trener},${rawSede},${normSede},${rawZgSp},${normZgSp},${rawDotik},${normDotik},${rawVisina},${normVisina},${sprejem},${podaja},${napad},${blok},${servis}\n`;
+      result += `${name},${sifra},${test},${rank},${skupna},${ocenaTrener},${ocenaVaje},${trener},${rawSede},${normSede},${rawZgSp},${normZgSp},${rawDotik},${normDotik},${rawVisina},${normVisina},${sprejem},${podaja},${napad},${blok},${servis}\n`;
     }
 
     return result;
@@ -199,6 +258,9 @@
       const res = await fetchPublicSheetData($page.url.searchParams);
       players = res.data;
       isGodmode = res.isGodmode;
+      // Privzeto prikaži samo najnovejše testiranje
+      const tags = getSortedTestTags(res.data);
+      enabledTests = tags.length > 0 ? [tags[tags.length - 1]] : [];
     } catch (e: any) {
       error = e.message || 'Napaka pri nalaganju podatkov.';
     } finally {
@@ -212,6 +274,30 @@
     <img src="/white_rabbit.png" alt="gibit logo" />
     ODBIT ODBOJKARSKI KARTON
   </h1>
+
+  {#if !loading && !error && availableTests.length > 0}
+    <div class="test-filter">
+      <span class="test-filter-label">Testiranje:</span>
+      {#each [...availableTests].reverse() as tag (tag)}
+        {@const parts = splitTestTag(tag)}
+        <button
+          type="button"
+          class="test-chip"
+          class:active={enabledTests.includes(tag)}
+          aria-pressed={enabledTests.includes(tag)}
+          title={`${tag} — ${enabledTests.includes(tag) ? 'Skrij test' : 'Prikaži test'}`}
+          on:click={() => toggleTest(tag)}
+        >
+          {#if parts}
+            <span class="chip-date">{parts.year} {parts.month}</span>
+            <span class="chip-type">{capitalize(parts.type)}</span>
+          {:else}
+            {tag}
+          {/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   <div class="table-wrapper">
   {#if loading}
@@ -233,7 +319,7 @@
                 <img src="/download.svg" alt="Prenesi" />
               </button>
             {:else}
-              #
+              {showTestTag ? 'Test' : '#'}
             {/if}
           </th>
 
@@ -372,7 +458,15 @@
       <tbody>
         {#each sortedPlayers as p}
           <tr>
-            <td>.</td>
+            <td class:tagcell={showTestTag}>
+              {#if showTestTag}
+                <span title={p.testiranje || undefined}
+                  >{p.testiranje ? testTypeIcon(p.testiranje) : '/'}</span
+                >
+              {:else}
+                .
+              {/if}
+            </td>
             {#if isGodmode}
               <td>
                 {#if p.godmode?.ocenaTrenerja && p.godmode?.ocenaIzVaj && Math.abs(p.godmode.ocenaTrenerja - p.godmode.ocenaIzVaj) > 1}
@@ -476,6 +570,44 @@
   h1 img {
     height: 1.4em;
   }
+  .test-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    padding: 0.8em 1em 0;
+    position: sticky;
+    left: 0;
+  }
+  .test-filter-label {
+    font-weight: 600;
+    color: #555;
+  }
+  .test-chip {
+    cursor: pointer;
+    border: 2px solid #1c93d1;
+    background: white;
+    color: #1c93d1;
+    border-radius: 999px;
+    padding: 0.3em 0.9em;
+    font-size: 0.95em;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.25;
+  }
+  .test-chip.active {
+    background: #1c93d1;
+    color: white;
+  }
+  .chip-type {
+    font-size: 0.8em;
+    font-weight: 400;
+    opacity: 0.75;
+  }
   /* No overflow here on purpose: .table-wrapper must NOT become a scroll
      container, otherwise the thead would stick to it instead of the page.
      Scrolling in both axes is handled by .page above. */
@@ -531,6 +663,13 @@
   tbody tr td:first-child::before {
     content: counter(rowNumber);
     min-width: 1em;
+  }
+  tbody tr td:first-child.tagcell::before {
+    content: none;
+  }
+  td:first-child.tagcell {
+    color: inherit;
+    font-size: 1em;
   }
   td:first-child {
     color: #888;
