@@ -8,12 +8,19 @@
  * Vhod: vsi listi z imenom "Zbirni Seznam - <tag>". Vsak list se obdela
  * posebej (brez deduplikacije med listi), rezultati vseh pa se zberejo
  * v listih "Rezultati" in "Javni" s stolpcem "Testiranje" (<tag>).
+ * List "Javni" je mogoče s posebno menijsko postavko prekopirati v ločeno
+ * javno preglednico (PUBLIC_SPREADSHEET_ID), ki jo bere frontend.
  * =========================================================================
  */
 
 // Ključa za AES-256-CBC šifriranje Godmode podatkov
 const GOD_KEY_HEX = 'f15ec6cea0ca8d5e5ba3c8ccc14b9dfca03928eee11ba0dd098b8fa43dca051c';
 const GOD_IV_HEX = 'c3ef5d01239c9a110f87098a9f9204e2';
+
+// ID ciljne javne preglednice, ki jo bere frontend (njen prvi list kot CSV).
+// To je ista datoteka, na katero kaže PUBLIC_SHEET_CSV_URL v src/lib/fetchData.ts.
+// Po potrebi zamenjajte z ID-jem svoje javne datoteke.
+const PUBLIC_SPREADSHEET_ID = '1YtuMO9YFmtLrn4-soOvor7utv9o7OQ1k-6MINFaKY74';
 
 /**
  * Ustvari meni v orodni vrstici Google Preglednic ob odprtju.
@@ -22,6 +29,7 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('OdBit')
     .addItem('Posodobi Rezultate in Javni list', 'generateRezultati')
+    .addItem('Objavi na spletu', 'copyJavniToPublic')
     .addToUi();
 }
 
@@ -720,4 +728,64 @@ function generateJavniSheet(ss, processedRows) {
 
   // Samodejna širina stolpcev
   javniSheet.autoResizeColumns(1, numCols);
+}
+
+// -------------------------------------------------------------------------
+// 7. Kopiranje lista "Javni" v ločeno javno preglednico (vir za frontend)
+// -------------------------------------------------------------------------
+
+/**
+ * Prekopira celotno vsebino lista "Javni" v javno preglednico
+ * (PUBLIC_SPREADSHEET_ID), ki jo kot CSV bere frontend.
+ * V ciljni datoteki prepiše list "Javni" (oziroma njen prvi list, če
+ * lista z imenom "Javni" še ni).
+ *
+ * Opomba: račun, s katerim se izvaja skripta, potrebuje dostop za
+ * urejanje ciljne datoteke (openById + pisanje).
+ */
+function copyJavniToPublic() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const javniSheet = getSheetFuzzy(ss, /^javn/i, 'Javni');
+  if (!javniSheet || javniSheet.getLastRow() < 1) {
+    SpreadsheetApp.getUi().alert(
+      'Napaka: List "Javni" je prazen ali ne obstaja. ' +
+      'Najprej zaženite "Posodobi Rezultate in Javni list".'
+    );
+    return;
+  }
+
+  let target;
+  try {
+    target = SpreadsheetApp.openById(PUBLIC_SPREADSHEET_ID);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert(
+      'Napaka: Javne preglednice ni bilo mogoče odpreti. ' +
+      'Preverite ID (PUBLIC_SPREADSHEET_ID) in dostop do datoteke.\n\n' + e.message
+    );
+    return;
+  }
+
+  let targetSheet = target.getSheetByName('Javni') || target.getSheets()[0];
+  if (!targetSheet) {
+    targetSheet = target.insertSheet('Javni');
+  }
+
+  const values = javniSheet.getDataRange().getValues();
+  targetSheet.clear();
+  targetSheet.getRange(1, 1, values.length, values[0].length).setValues(values);
+
+  // Osnovno oblikovanje glave, da je javna tabela berljiva tudi v brskalniku
+  targetSheet.setFrozenRows(1);
+  const headerRange = targetSheet.getRange(1, 1, 1, values[0].length);
+  headerRange.setFontWeight('bold');
+  headerRange.setBackground('#e8eaed');
+  headerRange.setHorizontalAlignment('center');
+  targetSheet.autoResizeColumns(1, values[0].length);
+
+  ss.toast(
+    'List "Javni" uspešno kopiran v javno preglednico (' + values.length + ' vrstic).',
+    'OdBit Uspeh',
+    6
+  );
 }

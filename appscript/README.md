@@ -34,7 +34,16 @@ Ta mapa vsebuje kodo za Google Apps Script, ki obdela podatke iz vseh listov **`
    - Dodelila vzdevke novim igralcem in jih dopisala v `Vzdevki`.
    - Upoštevala izjeme iz `Izjeme`.
    - Posodobila list **`Rezultati`** z vsemi internimi podrobnostmi.
-   - Posodobila list **`Javni`** z javnimi stolpci in enkriptiranim stolpcem `Godmode`.
+    - Posodobila list **`Javni`** z javnimi stolpci in enkriptiranim stolpcem `Godmode`.
+
+4. Ko je `Javni` posodobljen, ga z menijsko postavko
+   **`OdBit` > `Kopiraj Javni v javno tabelo`**
+   prekopirajte v ločeno javno preglednico (ID je nastavljen v konstanti
+   `PUBLIC_SPREADSHEET_ID` na vrhu `Code.js` — privzeto kaže na datoteko,
+   ki jo kot CSV bere frontend). V ciljni datoteki se prepiše list `Javni`
+   (oziroma njen prvi list, če lista z imenom `Javni` še ni).
+   Opomba: račun, s katerim teče skripta, potrebuje dostop za urejanje
+   ciljne datoteke.
 
 ---
 
